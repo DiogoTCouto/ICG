@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@types/three": "^0.173.0",
+    "three": "^0.173.0",
+    "three-mesh-ui": "^6.5.4"
+  }
+}
