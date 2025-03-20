@@ -2,16 +2,838 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Mandar Bolas</title>
+  <title>Dodge It!</title>
   <style>
-    body { margin: 0; overflow: hidden; }
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      font-family: 'Montserrat', sans-serif;
+      background: #000;
+    }
+    
+    #particles-js {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, #87CEEB, #1E90FF);
+      background-size: 100% 100%;
+      z-index: 0;
+    }
+    
+    /* Cloud animation */
+    .cloud {
+      position: absolute;
+      opacity: 0.8;
+      filter: blur(3px);
+      animation: float-cloud linear infinite;
+      z-index: 1;
+    }
+    
+    @keyframes float-cloud {
+      from { transform: translateX(-150px); }
+      to { transform: translateX(calc(100vw + 150px)); }
+    }
+    
+    /* Remove the gradient animation as we'll use a static sky */
+    
+    .menu-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(3px);
+      z-index: 1000;
+    }
+    
+    .game-title {
+      font-size: 92px;
+      color: rgb(46, 154, 62);
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.5),
+                  0 0 20px rgba(255, 255, 255, 0.3),
+                  0 0 30px rgba(255, 255, 255, 0.1);
+      margin-bottom: 50px;
+      font-weight: 800;
+      letter-spacing: 8px;
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+    
+    @keyframes glow {
+      from { text-shadow: 0 0 10px rgba(255, 255, 255, 0.5),
+                        0 0 20px rgba(255, 255, 255, 0.3),
+                        0 0 30px rgba(255, 255, 255, 0.1); }
+      to { text-shadow: 0 0 20px rgba(255, 255, 255, 0.7),
+                      0 0 30px rgba(255, 255, 255, 0.5),
+                      0 0 40px rgba(255, 255, 255, 0.3); }
+    }
+    
+    .menu-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 300px;
+      perspective: 1000px;
+    }
+    
+    .menu-button {
+      padding: 15px 0;
+      font-size: 22px;
+      border-radius: 50px;
+      border: none;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2),
+                  inset 0 0 10px rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transform-style: preserve-3d;
+    }
+    
+    .menu-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-5px) scale(1.05);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3),
+                  inset 0 0 10px rgba(255, 255, 255, 0.2);
+      letter-spacing: 3px;
+    }
+    
+    .menu-button.play {
+      background: linear-gradient(45deg, #00b09b, #96c93d);
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .menu-button.play:before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      transform: rotate(45deg);
+      animation: shine 3s infinite;
+    }
+    
+    @keyframes shine {
+      0% { left: -50%; }
+      100% { left: 150%; }
+    }
+    
+    .menu-button.play:hover {
+      background: linear-gradient(45deg, #00b09b, #96c93d);
+      transform: translateY(-5px) scale(1.05);
+    }
+    
+    /* Player customization modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .modal.active {
+      opacity: 1;
+    }
+    
+    .modal-content {
+      background: rgba(15, 15, 15, 0.9);
+      border-radius: 20px;
+      padding: 40px;
+      width: 500px;
+      position: relative;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+      color: white;
+      transform: scale(0.9);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .modal.active .modal-content {
+      transform: scale(1);
+      opacity: 1;
+    }
+    
+    .close-button {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      font-size: 24px;
+      cursor: pointer;
+      color: #aaa;
+      transition: color 0.3s;
+      z-index: 1;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .close-button:hover {
+      color: white;
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .modal-title {
+      font-size: 28px;
+      margin-bottom: 30px;
+      color: white;
+      text-align: center;
+      position: relative;
+      padding-bottom: 15px;
+    }
+    
+    .modal-title::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(to right, #00b09b, #96c93d);
+    }
+    
+    .player-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .player-option {
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .player-option:hover {
+      border-color: #4CAF50;
+      transform: scale(1.05);
+    }
+    
+    .player-option.selected {
+      border-color: #4CAF50;
+      background: rgba(76, 175, 80, 0.1);
+    }
+    
+    .player-preview {
+      width: 100%;
+      height: 100px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .color-options {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 20px;
+    }
+    
+    .color-option {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .color-option:hover {
+      transform: scale(1.1);
+    }
+    
+    .color-option.selected {
+      border-color: #333;
+      transform: scale(1.1);
+    }
+    
+    .save-button {
+      width: 100%;
+      padding: 12px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .save-button:hover {
+      background: #43A047;
+    }
+    
+    /* Controls modal */
+    .controls-content {
+      max-width: 600px;
+    }
+    
+    .controls-group {
+      margin-bottom: 20px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 15px;
+    }
+    
+    .control-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    
+    .key {
+      background: #eee;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-weight: bold;
+    }
+    
+    /* About modal */
+    .about-content {
+      text-align: center;
+    }
+    
+    .about-content img {
+      max-width: 150px;
+      border-radius: 50%;
+      margin-bottom: 20px;
+    }
+    
+    .game-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+    
+    /* Loading screen */
+    .loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 3000;
+    }
+    
+    .loading-text {
+      font-size: 32px;
+      color: white;
+      margin-bottom: 40px;
+      position: relative;
+      font-weight: 300;
+      letter-spacing: 3px;
+    }
+    
+    .loading-text::after {
+      content: '...';
+      position: absolute;
+      animation: dots 1.5s infinite;
+      width: 30px;
+      text-align: left;
+    }
+    
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+      100% { content: ''; }
+    }
+    
+    .loading-bar-container {
+      width: 300px;
+      height: 6px;
+      background: #333;
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .loading-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(to right, #00b09b, #96c93d);
+      position: absolute;
+      top: 0;
+      left: 0;
+      border-radius: 3px;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 10px rgba(150, 201, 61, 0.7);
+    }
+    
+    .loading-icon {
+      width: 100px;
+      height: 100px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      margin-bottom: 40px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Additional classes to enhance existing elements */
+    .game-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+    
+    /* Accessibility improvement - focus styles */
+    button:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+    }
+    
+    /* Animation classes */
+    .fade-in {
+      animation: fadeIn 0.5s forwards;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .slide-in {
+      animation: slideIn 0.5s forwards;
+    }
+    
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
   </style>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Particle background -->
+  <div id="particles-js"></div>
   
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.js"></script>
+  <!-- Cloud elements -->
+  <div id="clouds"></div>
+  
+  <!-- Loading Screen -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-icon"></div>
+    <div class="loading-text">Loading Dodge It!</div>
+    <div class="loading-bar-container">
+      <div class="loading-bar" id="loadingBar"></div>
+    </div>
+  </div>
 
-  <script type="module" src="./main.js"></script>
+  <!-- Main Menu -->
+  <div class="menu-container" id="mainMenu">
+    <div class="game-title">Dodge It!</div>
+    <div class="menu-buttons">
+      <button class="menu-button play" id="playButton">Play Game</button>
+      <button class="menu-button" id="customizeButton">Customize Player</button>
+      <button class="menu-button" id="controlsButton">Controls</button>
+      <button class="menu-button" id="viewModeButton">View Mode</button>
+      <button class="menu-button" id="aboutButton">About</button>
+    </div>
+  </div>
+  
+  <!-- Player Customization Modal -->
+  <div class="modal" id="customizeModal">
+    <div class="modal-content">
+      <span class="close-button" id="closeCustomize">&times;</span>
+      <h2 class="modal-title">Customize Your Player</h2>
+      
+      <h3>Choose Player Style</h3>
+      <div class="player-options">
+        <div class="player-option selected" data-model="cube">
+          <div class="player-preview">🟩</div>
+          <div>Cube</div>
+        </div>
+        <div class="player-option" data-model="sphere">
+          <div class="player-preview">🟢</div>
+          <div>Sphere</div>
+        </div>
+        <div class="player-option" data-model="pyramid">
+          <div class="player-preview">🔺</div>
+          <div>Pyramid</div>
+        </div>
+      </div>
+      
+      <h3>Choose Color</h3>
+      <div class="color-options">
+        <div class="color-option selected" style="background-color: #00ff00;" data-color="#00ff00"></div>
+        <div class="color-option" style="background-color: #ff0000;" data-color="#ff0000"></div>
+        <div class="color-option" style="background-color: #0000ff;" data-color="#0000ff"></div>
+        <div class="color-option" style="background-color: #ffff00;" data-color="#ffff00"></div>
+        <div class="color-option" style="background-color: #ff00ff;" data-color="#ff00ff"></div>
+      </div>
+      
+      <button class="save-button" id="saveCustomize">Save & Close</button>
+    </div>
+  </div>
+  
+  <!-- Controls Modal -->
+  <div class="modal" id="controlsModal">
+    <div class="modal-content controls-content">
+      <span class="close-button" id="closeControls">&times;</span>
+      <h2 class="modal-title">Game Controls</h2>
+      
+      <div class="controls-group">
+        <h3>Movement</h3>
+        <div class="control-item">
+          <span>Move Forward</span>
+          <span class="key">W</span>
+        </div>
+        <div class="control-item">
+          <span>Move Left</span>
+          <span class="key">A</span>
+        </div>
+        <div class="control-item">
+          <span>Move Backward</span>
+          <span class="key">S</span>
+        </div>
+        <div class="control-item">
+          <span>Move Right</span>
+          <span class="key">D</span>
+        </div>
+        <div class="control-item">
+          <span>Show Jump Targets</span>
+          <span class="key">Space</span>
+        </div>
+      </div>
+      
+      <div class="controls-group">
+        <h3>Game Controls</h3>
+        <div class="control-item">
+          <span>Toggle Day/Night</span>
+          <span class="key">N</span>
+        </div>
+        <div class="control-item">
+          <span>Pause Game</span>
+          <span class="key">ESC</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- About Modal -->
+  <div class="modal" id="aboutModal">
+    <div class="modal-content about-content">
+      <span class="close-button" id="closeAbout">&times;</span>
+      <h2 class="modal-title">About Dodge It!</h2>
+      
+      <img src="/api/placeholder/150/150" alt="placeholder"/>
+      
+      <p>Dodge It! is a challenging dodgeball game where you navigate a triangular terrain while dodging balls falling from the sky.</p>
+      <p>Developed with love using Three.js and Cannon.js for physics simulation.</p>
+      <p>Version 1.0.0</p>
+      <p>&copy; 2025 Your Name</p>
+    </div>
+  </div>
+  
+  <!-- Game Canvas will be inserted here by Three.js -->
+  <div id="gameContainer" style="display: none;"></div>
+  
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.js"></script>
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+  
+  <script>
+    // Initialize particles.js with new ball-like configuration
+    particlesJS("particles-js", {
+      "particles": {
+        "number": {
+          "value": 50,
+          "density": {
+            "enable": true,
+            "value_area": 800
+          }
+        },
+        "color": {
+          "value": ["#FF5252", "#FF4081", "#7C4DFF", "#536DFE", "#4CAF50", "#FFC107"]
+        },
+        "shape": {
+          "type": "circle",
+          "stroke": {
+            "width": 0,
+            "color": "#000000"
+          }
+        },
+        "opacity": {
+          "value": 0.8,
+          "random": true,
+          "anim": {
+            "enable": false,
+            "speed": 1,
+            "opacity_min": 0.3,
+            "sync": false
+          }
+        },
+        "size": {
+          "value": 15,
+          "random": true,
+          "anim": {
+            "enable": false,
+            "speed": 40,
+            "size_min": 5,
+            "sync": false
+          }
+        },
+        "line_linked": {
+          "enable": false
+        },
+        "move": {
+          "enable": true,
+          "speed": 8,
+          "direction": "bottom",
+          "random": true,
+          "straight": false,
+          "out_mode": "out",
+          "bounce": false,
+          "attract": {
+            "enable": false,
+            "rotateX": 600,
+            "rotateY": 1200
+          }
+        }
+      },
+      "interactivity": {
+        "detect_on": "canvas",
+        "events": {
+          "onhover": {
+            "enable": true,
+            "mode": "repulse"
+          },
+          "onclick": {
+            "enable": true,
+            "mode": "push"
+          },
+          "resize": true
+        },
+        "modes": {
+          "repulse": {
+            "distance": 100,
+            "duration": 0.4
+          },
+          "push": {
+            "particles_nb": 4
+          }
+        }
+      },
+      "retina_detect": true
+    });
+
+    // Add floating clouds to the background
+    function createClouds() {
+      const cloudsContainer = document.getElementById('clouds');
+      const cloudCount = 6;
+      
+      for (let i = 0; i < cloudCount; i++) {
+        const cloud = document.createElement('div');
+        cloud.className = 'cloud';
+        
+        // Randomize cloud properties
+        const size = 100 + Math.random() * 150;
+        const top = Math.random() * 60; // % from top
+        const opacity = 0.7 + Math.random() * 0.3;
+        const duration = 60 + Math.random() * 60; // seconds to cross screen
+        const delay = -Math.random() * 60; // start at random positions
+        
+        // Create cloud SVG
+        cloud.innerHTML = `
+          <svg width="${size}" height="${size/2}" viewBox="0 0 200 120" fill="white" opacity="${opacity}">
+            <path d="M176.1,62.6c-2.6-19.1-18.8-33.3-38.4-33.3c-8.6,0-16.6,2.8-23,7.5c-7.1-20.7-26.7-35.5-49.7-35.5
+            c-29.1,0-52.6,23.5-52.6,52.6c0,0.3,0,0.7,0,1C5.1,59.6,0,68.5,0,78.6c0,17.5,14.2,31.7,31.7,31.7h137.6
+            c16.9,0,30.7-13.7,30.7-30.7C200,69.7,189.7,61.8,176.1,62.6z"/>
+          </svg>
+        `;
+        
+        // Apply styles
+        cloud.style.top = `${top}%`;
+        cloud.style.opacity = opacity;
+        cloud.style.animationDuration = `${duration}s`;
+        cloud.style.animationDelay = `${delay}s`;
+        
+        cloudsContainer.appendChild(cloud);
+      }
+    }
+
+    // Call the cloud creation function
+    createClouds();
+
+    // User preferences
+    const userPreferences = {
+      playerModel: 'cube',
+      playerColor: '#00ff00',
+      viewMode: false  // false = play mode, true = view mode
+    };
+    
+    // DOM Elements
+    const mainMenu = document.getElementById('mainMenu');
+    const customizeModal = document.getElementById('customizeModal');
+    const controlsModal = document.getElementById('controlsModal');
+    const aboutModal = document.getElementById('aboutModal');
+    const loadingScreen = document.getElementById('loadingScreen');
+    const loadingBar = document.getElementById('loadingBar');
+    const gameContainer = document.getElementById('gameContainer');
+    
+    // Enhanced modal handling
+    function openModal(modalId) {
+      const modal = document.getElementById(modalId);
+      modal.style.display = 'flex';
+      setTimeout(() => {
+        modal.classList.add('active');
+      }, 10);
+    }
+    
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      modal.classList.remove('active');
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 300);
+    }
+    
+    // Button event listeners with improved modal handling
+    document.getElementById('playButton').addEventListener('click', startGame);
+    document.getElementById('customizeButton').addEventListener('click', () => {
+      openModal('customizeModal');
+    });
+    document.getElementById('controlsButton').addEventListener('click', () => {
+      openModal('controlsModal');
+    });
+    document.getElementById('viewModeButton').addEventListener('click', () => {
+      userPreferences.viewMode = true;
+      startGame();
+    });
+    document.getElementById('aboutButton').addEventListener('click', () => {
+      openModal('aboutModal');
+    });
+    
+    // Close buttons with improved modal handling
+    document.getElementById('closeCustomize').addEventListener('click', () => {
+      closeModal('customizeModal');
+    });
+    document.getElementById('closeControls').addEventListener('click', () => {
+      closeModal('controlsModal');
+    });
+    document.getElementById('closeAbout').addEventListener('click', () => {
+      closeModal('aboutModal');
+    });
+    
+    // Player options selection
+    const playerOptions = document.querySelectorAll('.player-option');
+    playerOptions.forEach(option => {
+      option.addEventListener('click', () => {
+        playerOptions.forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+        userPreferences.playerModel = option.getAttribute('data-model');
+      });
+    });
+    
+    // Color options selection
+    const colorOptions = document.querySelectorAll('.color-option');
+    colorOptions.forEach(option => {
+      option.addEventListener('click', () => {
+        colorOptions.forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+        userPreferences.playerColor = option.getAttribute('data-color');
+      });
+    });
+    
+    // Save customization
+    document.getElementById('saveCustomize').addEventListener('click', () => {
+      customizeModal.style.display = 'none';
+      // Update player appearance logic would go here in the full implementation
+    });
+    
+    // Enhanced loading animation
+    function simulateLoading() {
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += Math.random() * 5;
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(interval);
+          
+          // Add delay before hiding loading screen
+          setTimeout(() => {
+            document.getElementById('loadingScreen').style.opacity = '0';
+            setTimeout(() => {
+              document.getElementById('loadingScreen').style.display = 'none';
+            }, 500);
+          }, 300);
+        }
+        document.getElementById('loadingBar').style.width = `${progress}%`;
+      }, 100);
+    }
+    
+    // Improved startGame function
+    function startGame() {
+      const mainMenu = document.getElementById('mainMenu');
+      const loadingScreen = document.getElementById('loadingScreen');
+      const gameContainer = document.getElementById('gameContainer');
+      
+      // Fade out menu with animation
+      mainMenu.style.opacity = '0';
+      setTimeout(() => {
+        mainMenu.style.display = 'none';
+        // Show loading screen with fade in
+        loadingScreen.style.display = 'flex';
+        loadingScreen.style.opacity = '1';
+        gameContainer.style.display = 'block';
+        
+        simulateLoading();
+        
+        // Redirect to game.html with parameters
+        setTimeout(() => {
+          window.location.href = `game.html?model=${userPreferences.playerModel}` +
+                               `&color=${encodeURIComponent(userPreferences.playerColor)}` +
+                               `&viewMode=${userPreferences.viewMode}`;
+        }, 2500);
+      }, 300);
+    }
+    
+    // Initialize loading animation on page load
+    simulateLoading();
+  </script>
 </body>
 </html>
