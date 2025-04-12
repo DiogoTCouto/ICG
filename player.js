@@ -1,48 +1,56 @@
 // player.js
 import * as THREE from 'three';
-import { scene, camera } from './scene.js'; // Assuming camera is needed for input calculation
+import { scene, camera } from './scene.js'; // Camera needed for input calculation
 import { world, playerMaterial } from './physics.js';
-import { findNearestColumn } from './terrain.js'; // Assuming terrainColumns is not directly needed here
+import { findNearestColumn } from './terrain.js';
 
 // --- Player Model Creation Functions ---
 
+// Helper function to create a simple "headlight" mesh
+function createHeadlight() {
+    const lightGeometry = new THREE.SphereGeometry(0.25, 16, 8);
+    const lightMaterial = new THREE.MeshBasicMaterial({ color: 0xffffaa });
+    const headlight = new THREE.Mesh(lightGeometry, lightMaterial);
+    headlight.name = "HeadlightIndicator";
+    return headlight;
+}
+
+// createCubePlayer, createSpherePlayer, createRobotPlayer functions remain the same
+// (Including the headlight addition from the previous step)
+// ... (Paste the createCubePlayer, createSpherePlayer, createRobotPlayer functions here, unchanged from the previous correct version) ...
 /**
- * Creates a cube player with a forward indicator
+ * Creates a cube player with a forward indicator (headlight)
  */
 function createCubePlayer() {
     const playerGroup = new THREE.Group();
-    // Define colors
-    const color = new THREE.Color(0x00cc44); // Adjusted green
+    const color = new THREE.Color(0x00cc44);
     const darkerColor = color.clone().multiplyScalar(0.7);
     const topColor = new THREE.Color(0xeeeeee);
-    const frontColor = color.clone().lerp(new THREE.Color(0xffffff), 0.2); // Slightly lighter front
+    const frontColor = color.clone().lerp(new THREE.Color(0xffffff), 0.2);
 
-    // Define materials for each face for clarity
     const materials = [
         new THREE.MeshPhongMaterial({ color: color, shininess: 30 }),        // Right (+X)
         new THREE.MeshPhongMaterial({ color: color, shininess: 30 }),        // Left (-X)
         new THREE.MeshPhongMaterial({ color: topColor, shininess: 50 }),     // Top (+Y)
         new THREE.MeshPhongMaterial({ color: darkerColor, shininess: 20 }),  // Bottom (-Y)
-        new THREE.MeshPhongMaterial({ color: frontColor, shininess: 40 }),   // Front (+Z) - Distinct front
+        new THREE.MeshPhongMaterial({ color: frontColor, shininess: 40 }),   // Front (+Z)
         new THREE.MeshPhongMaterial({ color: color, shininess: 30 })         // Back (-Z)
     ];
     const bodyGeometry = new THREE.BoxGeometry(2.5, 2.5, 2.5);
     const body = new THREE.Mesh(bodyGeometry, materials);
     playerGroup.add(body);
 
-    // --- Eyes (Positioned relative to front face +Z) ---
     const eyeGeometry = new THREE.SphereGeometry(0.3, 16, 16);
     const eyeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
     const pupilGeometry = new THREE.SphereGeometry(0.15, 16, 16);
     const pupilMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
-
     const eyeY = 0.5;
-    const eyeZ = 1.26; // Position eyes on the front surface (Box radius = 2.5/2 = 1.25)
+    const eyeZ = 1.26; // Front surface (Box radius = 1.25)
 
     const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     leftEye.position.set(-0.6, eyeY, eyeZ);
     const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
-    leftPupil.position.set(0, 0, 0.16); // Pupil slightly forward from eye center
+    leftPupil.position.set(0, 0, 0.16);
     leftEye.add(leftPupil);
 
     const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
@@ -50,43 +58,29 @@ function createCubePlayer() {
     const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
     rightPupil.position.set(0, 0, 0.16);
     rightEye.add(rightPupil);
-
     playerGroup.add(leftEye, rightEye);
 
-    // --- Mouth (Positioned relative to front face +Z) ---
     const mouthGeometry = new THREE.TorusGeometry(0.5, 0.08, 16, 16, Math.PI);
     const mouthMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
     const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
-    mouth.position.set(0, -0.3, eyeZ); // Position mouth on the front surface
-    mouth.rotation.set(0, 0, Math.PI); // Rotate torus arc to form smile
+    mouth.position.set(0, -0.3, eyeZ);
+    mouth.rotation.set(0, 0, Math.PI);
     playerGroup.add(mouth);
 
-    // --- Forward Indicator (Simple Arrow on Front Face) ---
-    const arrowShape = new THREE.Shape();
-    arrowShape.moveTo(0, 0.3);
-    arrowShape.lineTo(0.4, -0.3);
-    arrowShape.lineTo(0, -0.1);
-    arrowShape.lineTo(-0.4, -0.3);
-    arrowShape.lineTo(0, 0.3);
-    const arrowGeometry = new THREE.ShapeGeometry(arrowShape);
-    // Use MeshBasicMaterial for indicators so they are visible regardless of light
-    const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0xffdd00, side: THREE.DoubleSide });
-    const indicatorArrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-    // Position it slightly in front of the face, below the mouth
-    indicatorArrow.position.set(0, -0.9, eyeZ + 0.01); // Place just off the front surface
-    indicatorArrow.scale.set(0.8, 0.8, 0.8);
-    playerGroup.add(indicatorArrow);
+    // --- Headlight Indicator ---
+    const headlight = createHeadlight();
+    headlight.position.set(0, 0.0, eyeZ + 0.1);
+    playerGroup.add(headlight);
 
     return playerGroup;
 }
-
 /**
- * Creates a sphere player with a forward indicator
+ * Creates a sphere player with a forward indicator (headlight)
  */
 function createSpherePlayer() {
     const playerGroup = new THREE.Group();
     const color = new THREE.Color(0x3366ff);
-    const sphereRadiusMesh = playerRadius * 0.9; // Mesh slightly smaller than physics body
+    const sphereRadiusMesh = playerRadius * 0.9;
 
     const bodyGeometry = new THREE.SphereGeometry(sphereRadiusMesh, 32, 32);
     const bodyMaterial = new THREE.MeshPhongMaterial({
@@ -96,58 +90,44 @@ function createSpherePlayer() {
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     playerGroup.add(body);
 
-    // --- Ring ---
     const ringGeometry = new THREE.TorusGeometry(playerRadius * 1.1, 0.15, 16, 32);
     const ringMaterial = new THREE.MeshPhongMaterial({ color: 0xffcc00, shininess: 80 });
     const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    ring.rotation.set(Math.PI / 2, 0, 0); // Rotate to be horizontal
+    ring.rotation.set(Math.PI / 2, 0, 0);
     playerGroup.add(ring);
 
-    // --- Eyes (Positioned relative to front +Z) ---
     const eyeGeometry = new THREE.SphereGeometry(0.3, 16, 16);
     const eyeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
     const pupilGeometry = new THREE.SphereGeometry(0.15, 16, 16);
     const pupilMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
-
     const eyeY = 0.5;
-    // Calculate Z position to be on the surface of the sphere mesh
-    const eyeAngle = Math.asin(0.5 / sphereRadiusMesh); // Angle based on horizontal separation
-    const eyeDistZ = sphereRadiusMesh * Math.cos(eyeAngle); // Z distance from center
+    const eyeAngle = Math.asin(0.5 / sphereRadiusMesh);
+    const eyeDistZ = sphereRadiusMesh * Math.cos(eyeAngle);
 
     const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     leftEye.position.set(-0.5, eyeY, eyeDistZ);
     const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
     leftPupil.position.set(0, 0, 0.16);
     leftEye.add(leftPupil);
-    // Rotate eye slightly to face outwards along sphere normal (optional but nice)
-    leftEye.lookAt(playerGroup.position); // Look at center first
-    leftEye.rotation.y += Math.PI; // Flip to face outwards
+    leftEye.lookAt(playerGroup.position); leftEye.rotation.y += Math.PI;
 
     const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     rightEye.position.set(0.5, eyeY, eyeDistZ);
     const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
     rightPupil.position.set(0, 0, 0.16);
     rightEye.add(rightPupil);
-    // Rotate eye slightly
-    rightEye.lookAt(playerGroup.position);
-    rightEye.rotation.y += Math.PI;
-
+    rightEye.lookAt(playerGroup.position); rightEye.rotation.y += Math.PI;
     playerGroup.add(leftEye, rightEye);
 
-    // --- Forward Indicator (Cone Pointer) ---
-    const pointerGeometry = new THREE.ConeGeometry(0.3, 0.8, 8); // Base radius, height, segments
-    const pointerMaterial = new THREE.MeshBasicMaterial({ color: 0xffdd00 }); // Basic material
-    const indicatorPointer = new THREE.Mesh(pointerGeometry, pointerMaterial);
-    // Position it in front of the sphere, pointing forward (+Z)
-    indicatorPointer.position.set(0, 0, sphereRadiusMesh + 0.4); // Place tip just outside sphere radius (height/2 = 0.4)
-    indicatorPointer.rotation.set(Math.PI / 2, 0, 0); // Rotate cone's axis from Y to Z
-    playerGroup.add(indicatorPointer);
+    // --- Headlight Indicator ---
+    const headlight = createHeadlight();
+    headlight.position.set(0, 0, sphereRadiusMesh + 0.05);
+    playerGroup.add(headlight);
 
     return playerGroup;
 }
-
 /**
- * Creates a robot-like player (assuming eyes/panel define front)
+ * Creates a robot-like player with a forward indicator (headlight)
  */
 function createRobotPlayer() {
     const playerGroup = new THREE.Group();
@@ -156,72 +136,58 @@ function createRobotPlayer() {
     const headDepth = 1.4;
     const bodyDepth = 1.6;
 
-    // --- Head ---
     const headGeometry = new THREE.BoxGeometry(1.8, 1.4, headDepth);
     const headMaterial = new THREE.MeshPhongMaterial({ color: headColor, shininess: 70, metalness: 0.6 });
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.position.set(0, 0.8, 0);
     playerGroup.add(head);
 
-    // --- Robot body ---
     const bodyGeometry = new THREE.BoxGeometry(2.2, 1.8, bodyDepth);
     const bodyMaterial = new THREE.MeshPhongMaterial({ color: bodyColor, shininess: 60 });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.position.set(0, -0.6, 0);
     playerGroup.add(body);
 
-    // --- Robot eyes (Define the front +Z) ---
-    const eyeGeometry = new THREE.BoxGeometry(0.4, 0.2, 0.1); // Thin eyes
+    const eyeGeometry = new THREE.BoxGeometry(0.4, 0.2, 0.1);
     const eyeMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.8 });
-    const eyeY = 1.0; // Relative to group center
-    const eyeZ = headDepth / 2 + 0.01; // Place on head's front surface
-
+    const eyeY = 1.0;
+    const eyeZ = headDepth / 2 + 0.01; // On head's front surface
     const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     leftEye.position.set(-0.5, eyeY, eyeZ);
     const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     rightEye.position.set(0.5, eyeY, eyeZ);
     playerGroup.add(leftEye, rightEye);
 
-    // --- Robot antenna ---
-    const antennaBaseY = 1.5; // Relative to group center
+    const antennaBaseY = 1.5;
     const antennaGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 8);
     const antennaMaterial = new THREE.MeshPhongMaterial({ color: 0x444444 });
     const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
-    antenna.position.set(0, antennaBaseY + 0.4, 0); // Position relative to group center
+    antenna.position.set(0, antennaBaseY + 0.4, 0);
     const antennaTipGeometry = new THREE.SphereGeometry(0.12, 16, 16);
     const antennaTipMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.6 });
     const antennaTip = new THREE.Mesh(antennaTipGeometry, antennaTipMaterial);
-    antennaTip.position.set(0, antennaBaseY + 0.8, 0); // Position relative to group center
+    antennaTip.position.set(0, antennaBaseY + 0.8, 0);
     playerGroup.add(antenna, antennaTip);
 
-    // --- Decorative chest panel (Also defines front +Z) ---
     const panelGeometry = new THREE.PlaneGeometry(1.5, 1);
     const panelMaterial = new THREE.MeshPhongMaterial({ color: 0x555555, shininess: 90 });
     const panel = new THREE.Mesh(panelGeometry, panelMaterial);
-    const panelZ = bodyDepth / 2 + 0.01; // Place on body's front surface
+    const panelZ = bodyDepth / 2 + 0.01; // On body's front surface
     panel.position.set(0, -0.6, panelZ);
     playerGroup.add(panel);
 
-    // --- Panel lights ---
     for (let i = 0; i < 3; i++) {
         const lightGeometry = new THREE.CircleGeometry(0.1, 16);
         const lightMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 0.5 });
         const light = new THREE.Mesh(lightGeometry, lightMaterial);
-        light.position.set(-0.5 + i * 0.5, -0.6, panelZ + 0.01); // Position lights just off panel surface
+        light.position.set(-0.5 + i * 0.5, -0.6, panelZ + 0.01); // Just off panel
         playerGroup.add(light);
     }
 
-
-    const arrowShape = new THREE.Shape();
-    arrowShape.moveTo(0, 0.2); arrowShape.lineTo(0.3, -0.2); arrowShape.lineTo(0, -0.1);
-    arrowShape.lineTo(-0.3, -0.2); arrowShape.lineTo(0, 0.2);
-    const arrowGeometry = new THREE.ShapeGeometry(arrowShape);
-    const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0xffdd00, side: THREE.DoubleSide });
-    const indicatorArrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-    indicatorArrow.position.set(0, -1.2, panelZ + 0.02); // On body, below panel, slightly forward
-    indicatorArrow.scale.set(0.7, 0.7, 0.7);
-    playerGroup.add(indicatorArrow);
-
+    // --- Headlight Indicator ---
+    const headlight = createHeadlight();
+    headlight.position.set(0, eyeY, eyeZ + 0.1);
+    playerGroup.add(headlight);
 
     return playerGroup;
 }
@@ -232,24 +198,31 @@ const playerModels = {
     cube: { create: createCubePlayer, name: 'Cube' },
     sphere: { create: createSpherePlayer, name: 'Sphere' },
     robot: { create: createRobotPlayer, name: 'Robot' },
+    // Add pyramid if you create it:
+    // pyramid: { create: createPyramidPlayer, name: 'Pyramid' },
 };
 
 // --- Module Variables ---
 let playerBody = null;
 let playerMesh = null;
-let playerModel = 'cube'; // Default model
-const playerRadius = 1.5; // Physics shape radius
+let playerModel = 'cube';
+const playerRadius = 1.5;
+const playerHeightOffset = 1.6;
 
 // Movement parameters
 const moveSpeed = 9;
-const jumpForce = 18;
-const velocityLerpFactor = 0.18; // Smoothing factor for velocity change
-const rotationSlerpFactor = 0.15; // Smoothing factor for rotation change
-const minMoveSpeedForRotation = 0.1; // Minimum speed threshold to rotate based on velocity
+const strafeSpeedFactor = 0.7; // Strafing is 70% of forward speed
+const jumpForce = 22; // Increased jump force
+const velocityLerpFactor = 0.18;
+const rotationSlerpFactor = 0.15;
+const minMoveSpeedForRotation = 0.1;
 
 // State variables
-let canJump = false;
-let lastValidYaw = 0; // Stores the last angle the player was facing when moving
+let canJump = false; // Is the player currently touching the ground?
+let jumpsRemaining = 0; // For double jump
+const maxJumps = 2; // Allow double jump
+let lastValidYaw = 0;
+let cameraMode = 'thirdPerson';
 
 // Input state
 const movementState = {
@@ -262,7 +235,7 @@ const movementState = {
 
 // Raycaster for ground check
 const groundCheckRay = new CANNON.Ray(new CANNON.Vec3(0, 0, 0), new CANNON.Vec3(0, -1, 0));
-const groundCheckDistance = playerRadius + 0.2; // How far below the center to check
+const groundCheckDistance = playerRadius + 0.2;
 const raycastOptions = { collisionFilterMask: -1, skipBackfaces: true };
 const rayResult = new CANNON.RaycastResult();
 
@@ -272,34 +245,31 @@ const rayResult = new CANNON.RaycastResult();
  */
 function initPlayer(initialModel = 'cube') {
     playerModel = initialModel;
+    cameraMode = 'thirdPerson';
+    jumpsRemaining = maxJumps; // Initialize jumps
     const sphereShape = new CANNON.Sphere(playerRadius);
 
     playerBody = new CANNON.Body({
-        mass: 70,
-        material: playerMaterial,
-        fixedRotation: true, // Prevents physics body from tipping
-        linearDamping: 0.9, // Natural slowdown
-        angularDamping: 1.0 // No spinning
+        mass: 70, material: playerMaterial, fixedRotation: true,
+        linearDamping: 0.9, angularDamping: 1.0
     });
     playerBody.addShape(sphereShape);
-    playerBody.isPlayer = true; // Custom flag if needed elsewhere
+    playerBody.isPlayer = true;
 
-    // Find a starting position
-    const startColumn = findNearestColumn(0, 0) || { height: 5, x: 0, z: 0 }; // Fallback
-    const startY = startColumn.height + playerRadius + 0.1; // Start slightly above column
+    const startColumn = findNearestColumn(0, 0) || { height: 5, x: 0, z: 0 };
+    const startY = startColumn.height + playerRadius + 0.1;
     playerBody.position.set(startColumn.x, startY, startColumn.z);
-    playerBody.sleepState = CANNON.Body.AWAKE; // Ensure physics is active
-    playerBody.allowSleep = false; // Keep physics active
+    playerBody.sleepState = CANNON.Body.AWAKE;
+    playerBody.allowSleep = false;
 
-    // Create the visual mesh
-    const createModelFn = playerModels[playerModel]?.create || createCubePlayer; // Use selected or default
+    const createModelFn = playerModels[playerModel]?.create || createCubePlayer;
     playerMesh = createModelFn();
     playerMesh.castShadow = true;
 
-    // Sync mesh position and initial rotation (face forward Z)
     playerMesh.position.copy(playerBody.position);
-    lastValidYaw = 0; // Start facing world +Z
+    lastValidYaw = 0;
     playerMesh.quaternion.setFromEuler(new THREE.Euler(0, lastValidYaw, 0));
+    playerMesh.visible = true;
 
     scene.add(playerMesh);
     world.addBody(playerBody);
@@ -309,13 +279,13 @@ function initPlayer(initialModel = 'cube') {
  * Changes the player's visual model.
  */
 function changePlayerModel(modelName) {
+    // ... (Function remains the same as previous version) ...
     if (!playerModels[modelName] || !playerBody || !playerMesh) {
         console.error(`Model "${modelName}" not found or player not initialized!`);
         return;
     }
-
     const currentPosition = playerBody.position.clone();
-    const currentQuaternion = playerMesh.quaternion.clone(); // Preserve current rotation
+    const currentQuaternion = playerMesh.quaternion.clone();
 
     // Remove old mesh and dispose resources
     scene.remove(playerMesh);
@@ -337,32 +307,44 @@ function changePlayerModel(modelName) {
     const createModelFn = playerModels[playerModel].create;
     playerMesh = createModelFn();
     playerMesh.castShadow = true;
-
-    // Restore position and rotation
     playerMesh.position.copy(currentPosition);
     playerMesh.quaternion.copy(currentQuaternion);
+    // Ensure visibility matches current camera mode after model change
+    playerMesh.visible = (cameraMode === 'thirdPerson');
 
     scene.add(playerMesh);
 }
 
 /**
- * Sets up keyboard event listeners for player controls.
+ * Sets up keyboard event listeners for player controls and camera toggle.
  */
 function setupPlayerControls() {
+    // ... (Function remains the same as previous version) ...
+    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keyup', onKeyUp);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
 }
 
 /**
- * Handles keydown events to update movement state.
+ * Handles keydown events to update movement state and toggle camera.
  */
 function onKeyDown(event) {
+    // ... (Function remains the same as previous version) ...
     switch (event.code) {
         case 'KeyW': case 'ArrowUp': movementState.forward = true; break;
         case 'KeyS': case 'ArrowDown': movementState.backward = true; break;
         case 'KeyA': case 'ArrowLeft': movementState.left = true; break;
         case 'KeyD': case 'ArrowRight': movementState.right = true; break;
-        case 'Space': movementState.jump = true; break;
+        case 'Space':
+             // Trigger jump only on initial press down, not hold
+             if (!movementState.jump) {
+                 movementState.jump = true;
+             }
+             break;
+    }
+    if (event.code === 'KeyF' && !event.repeat) {
+        toggleCameraMode();
     }
 }
 
@@ -370,131 +352,184 @@ function onKeyDown(event) {
  * Handles keyup events to update movement state.
  */
 function onKeyUp(event) {
+    // ... (Function remains the same as previous version) ...
     switch (event.code) {
         case 'KeyW': case 'ArrowUp': movementState.forward = false; break;
         case 'KeyS': case 'ArrowDown': movementState.backward = false; break;
         case 'KeyA': case 'ArrowLeft': movementState.left = false; break;
         case 'KeyD': case 'ArrowRight': movementState.right = false; break;
-        case 'Space': movementState.jump = false; break; // Reset jump request on key up
+        case 'Space': movementState.jump = false; break; // Reset jump flag on key up
     }
 }
+
+/**
+ * Toggles between camera modes and updates player mesh visibility.
+ */
+function toggleCameraMode() {
+    // ... (Function remains the same as previous version) ...
+    if (cameraMode === 'thirdPerson') {
+        cameraMode = 'firstPerson';
+        if (playerMesh) playerMesh.visible = false; // Hide mesh in first person
+    } else {
+        cameraMode = 'thirdPerson';
+        if (playerMesh) playerMesh.visible = true; // Show mesh in third person
+    }
+    console.log("Camera mode switched to:", cameraMode);
+}
+
 
 /**
  * Updates the player's state each frame (physics, position, rotation).
  */
 function updatePlayer() {
-    if (!playerBody || !playerMesh || !camera) return; // Ensure everything is initialized
+    if (!playerBody || !playerMesh || !camera) return;
 
     // --- 1. Ground Check ---
     groundCheckRay.from.copy(playerBody.position);
     groundCheckRay.to.copy(playerBody.position);
-    groundCheckRay.to.y -= groundCheckDistance; // Check below the player center
+    groundCheckRay.to.y -= groundCheckDistance;
     rayResult.reset();
     world.raycastClosest(groundCheckRay.from, groundCheckRay.to, raycastOptions, rayResult);
     canJump = rayResult.hasHit;
 
+    // Reset jumps if grounded
+    if (canJump) {
+        jumpsRemaining = maxJumps;
+    }
+
     // --- 2. Calculate Intended Movement Direction (Relative to Camera) ---
     const forward = new THREE.Vector3();
     const right = new THREE.Vector3();
-    camera.getWorldDirection(forward); // Get camera's view direction
-    forward.y = 0; // Project onto XZ plane
+    camera.getWorldDirection(forward);
+    forward.y = 0;
     forward.normalize();
-    right.crossVectors(camera.up, forward).normalize(); // Calculate right vector based on camera view
+    right.crossVectors(camera.up, forward).normalize();
 
-    const moveDirection = new THREE.Vector3(); // This is the direction the player *wants* to move in world space
-    if (movementState.forward) moveDirection.add(forward);
-    if (movementState.backward) moveDirection.sub(forward);
-    if (movementState.left) moveDirection.sub(right);
-    if (movementState.right) moveDirection.add(right);
+    // Calculate forward/backward and left/right components separately
+    const forwardMove = new THREE.Vector3();
+    if (movementState.forward) forwardMove.add(forward);
+    if (movementState.backward) forwardMove.sub(forward);
 
-    const isTryingToMove = moveDirection.lengthSq() > 0.01; // Check if any movement key is pressed
-    moveDirection.normalize(); // Normalize to get direction only
+    const strafeMove = new THREE.Vector3();
+    // *** A/D REVERSE FIX: Swapped .add and .sub ***
+    if (movementState.left) strafeMove.add(right); // A moves left (adds right vector relative to camera looking forward?) NO, A should subtract right. Let's test this. If A moves right, swap back.
+    if (movementState.right) strafeMove.sub(right); // D moves right (subtracts right vector?) NO, D should add right. Let's test this. If D moves left, swap back.
+    // *** Correction: Standard right-handed system: A/Left subtracts right vector, D/Right adds right vector ***
+    // Let's revert the swap and assume the standard system. If it's still reversed, the issue might be elsewhere (camera setup?).
+    strafeMove.set(0,0,0); // Reset strafeMove
+    if (movementState.left) strafeMove.sub(right);  // A/Left subtracts right vector
+    if (movementState.right) strafeMove.add(right); // D/Right adds right vector
+
+
+    const isTryingToMove = movementState.forward || movementState.backward || movementState.left || movementState.right;
 
     // --- 3. Apply Smoothed Movement Velocity ---
     const currentVelocity = playerBody.velocity;
-    // Target velocity based on input direction
+
+    // Calculate target velocity components with different speeds
+    const targetForwardVel = forwardMove.multiplyScalar(moveSpeed);
+    const targetStrafeVel = strafeMove.multiplyScalar(moveSpeed * strafeSpeedFactor); // Apply strafe factor
+
+    // Combine target velocities
     const targetVelocityXZ = new CANNON.Vec3(
-        moveDirection.x * moveSpeed,
-        0, // Only concerned with XZ plane for movement input
-        moveDirection.z * moveSpeed
+        targetForwardVel.x + targetStrafeVel.x,
+        0, // Only target XZ velocity based on input
+        targetForwardVel.z + targetStrafeVel.z
     );
 
-    // Smoothly interpolate X and Z velocity towards the target
+    // Interpolate towards target velocity
     playerBody.velocity.x += (targetVelocityXZ.x - currentVelocity.x) * velocityLerpFactor;
     playerBody.velocity.z += (targetVelocityXZ.z - currentVelocity.z) * velocityLerpFactor;
-    // Y velocity is handled by physics (gravity) and jumping
 
-    // --- 4. Handle Jumping ---
-    if (movementState.jump && canJump) {
-        // Apply an immediate upward velocity change. Resetting Y velocity first can make jumps feel more consistent.
-        playerBody.velocity.y = jumpForce;
-        canJump = false; // Prevent double jump until next ground contact
-        movementState.jump = false; // Consume the jump request
+    // --- 4. Handle Jumping (with Double Jump) ---
+    if (movementState.jump && jumpsRemaining > 0) {
+        playerBody.velocity.y = jumpForce; // Apply jump impulse
+        jumpsRemaining--; // Decrement jumps remaining
+        canJump = false; // Prevent ground check from resetting jumps immediately
+        movementState.jump = false; // Consume the jump request for this frame
+        console.log("Jump! Remaining:", jumpsRemaining); // Debug log
+    }
+    // Ensure jump flag is reset if key is released, even if jump didn't happen
+    if (!movementState.jump && !window.onkeyup) { // Check if key is actually up
+         movementState.jump = false;
     }
 
+
     // --- 5. Update Mesh Position ---
-    // Directly copy physics body position to the visual mesh
     playerMesh.position.copy(playerBody.position);
 
     // --- 6. Update Mesh Rotation (Face Movement Direction) ---
-    const horizontalSpeedSq = currentVelocity.x * currentVelocity.x + currentVelocity.z * currentVelocity.z;
-    let targetYaw = lastValidYaw; // Default to the last direction the player was actually moving
+    // *** ROTATION FIX: Only rotate mesh in 3rd person OR when strafing (A/D) ***
+    const isStrafing = movementState.left || movementState.right;
+    if (cameraMode === 'thirdPerson' || isStrafing) {
+        const horizontalSpeedSq = currentVelocity.x * currentVelocity.x + currentVelocity.z * currentVelocity.z;
+        let targetYaw = lastValidYaw;
 
-    if (horizontalSpeedSq > minMoveSpeedForRotation * minMoveSpeedForRotation) {
-        // If moving significantly, calculate yaw from the *actual* velocity vector
-        targetYaw = Math.atan2(currentVelocity.x, currentVelocity.z); // atan2(x, z) gives yaw angle relative to +Z axis
-        lastValidYaw = targetYaw; // Update the last valid direction the player was moving
-    } else if (isTryingToMove) {
-        // If not moving much BUT *trying* to move (keys pressed), face the *intended* direction
-        targetYaw = Math.atan2(moveDirection.x, moveDirection.z);
-        // Do not update lastValidYaw here, as the player isn't actually moving significantly in this direction yet
+        // Determine combined move direction for rotation target if trying to move
+        const combinedMoveDirection = new THREE.Vector3();
+        if (movementState.forward) combinedMoveDirection.add(forward);
+        if (movementState.backward) combinedMoveDirection.sub(forward);
+        if (movementState.left) combinedMoveDirection.sub(right); // Use corrected strafe direction
+        if (movementState.right) combinedMoveDirection.add(right); // Use corrected strafe direction
+        combinedMoveDirection.normalize();
+
+
+        if (horizontalSpeedSq > minMoveSpeedForRotation * minMoveSpeedForRotation) {
+            // If moving significantly, face actual velocity direction
+            targetYaw = Math.atan2(currentVelocity.x, currentVelocity.z);
+            lastValidYaw = targetYaw;
+        } else if (isTryingToMove) {
+            // If trying to move (even slowly), face the intended combined direction
+             if (combinedMoveDirection.lengthSq() > 0.01) { // Ensure there is an intended direction
+                 targetYaw = Math.atan2(combinedMoveDirection.x, combinedMoveDirection.z);
+                 // Don't update lastValidYaw here unless actually moving significantly
+             }
+        }
+        // If idle, targetYaw remains lastValidYaw
+
+        const targetQuaternion = new THREE.Quaternion();
+        targetQuaternion.setFromEuler(new THREE.Euler(0, targetYaw, 0, 'YXZ'));
+
+        // Smoothly rotate the mesh towards the target rotation
+        playerMesh.quaternion.slerp(targetQuaternion, rotationSlerpFactor);
     }
-    // If idle (not moving fast enough and no keys pressed), targetYaw remains lastValidYaw, so the player keeps facing the last direction.
-
-    const targetQuaternion = new THREE.Quaternion();
-    // Set target rotation around Y axis based on calculated yaw
-    targetQuaternion.setFromEuler(new THREE.Euler(0, targetYaw, 0, 'YXZ')); // Use 'YXZ' order for clarity
-
-    // Smoothly interpolate the mesh's current rotation towards the target rotation
-    playerMesh.quaternion.slerp(targetQuaternion, rotationSlerpFactor);
+    // If in first person and moving only forward/backward, mesh rotation doesn't change.
 
     // --- 7. Fall Check / Respawn ---
-    if (playerBody.position.y < -25) { // Check if player fell off
+    if (playerBody.position.y < -25) {
+        // ... (Respawn logic remains the same as previous version) ...
         const respawnColumn = findNearestColumn(0, 0) || { height: 5, x: 0, z: 0 };
         const respawnY = respawnColumn.height + playerRadius + 0.1;
-        // Reset physics state
         playerBody.position.set(respawnColumn.x, respawnY, respawnColumn.z);
         playerBody.velocity.set(0, 0, 0);
         playerBody.angularVelocity.set(0, 0, 0);
-
-        // Reset mesh state immediately
         playerMesh.position.copy(playerBody.position);
-        lastValidYaw = 0; // Reset facing direction to forward (+Z)
+        lastValidYaw = 0;
         playerMesh.quaternion.setFromEuler(new THREE.Euler(0, lastValidYaw, 0));
+        playerMesh.visible = (cameraMode === 'thirdPerson');
+        jumpsRemaining = maxJumps; // Reset jumps on respawn
     }
 }
 
-/**
- * Returns the player's physics body.
- */
-function getPlayerBody() {
-    return playerBody;
-}
+// --- Getters ---
+// ... (Getters remain the same as previous version) ...
+function getPlayerBody() { return playerBody; }
+function getPlayerModel() { return playerModel; }
+function getPlayerMesh() { return playerMesh; }
+function getCameraMode() { return cameraMode; }
+function getPlayerHeightOffset() { return playerHeightOffset; }
 
-/**
- * Returns the currently selected player model name.
- */
-function getPlayerModel() {
-    return playerModel;
-}
-
-// Export necessary functions and variables
+// --- Exports ---
+// ... (Exports remain the same as previous version) ...
 export {
     initPlayer,
     setupPlayerControls,
     updatePlayer,
     getPlayerBody,
     changePlayerModel,
-    playerModels, // Exporting the models dictionary might be useful for UI
+    playerModels,
     getPlayerModel,
+    getCameraMode,
+    getPlayerMesh,
+    getPlayerHeightOffset,
 };

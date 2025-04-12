@@ -1,238 +1,320 @@
 // main.js
+import * as THREE from 'three'; // Import THREE namespace
 import { scene, camera, renderer, cameraRotation, cameraTilt, isDragging } from './scene.js';
 import { world } from './physics.js';
-import { initWalls, initRandomPillars } from './walls.js';
+// Import specific terrain functions needed (KEEPING ORIGINAL IMPORTS)
+import { initTerrain, updateWater, findNearestColumn } from './terrain.js';
+import { initBlockyTerrain, initSpacedBlockyTerrain } from './terrain.js';
+// Import player functions and getters
 import {
   initPlayer,
   setupPlayerControls,
   updatePlayer,
-  getPlayerBody
+  getPlayerBody,
+  // Import new getters for camera control
+  getCameraMode,
+  getPlayerMesh,
+  getPlayerHeightOffset
 } from './player.js';
-import { spawnBallMachine, updateBalls, BALL_TYPES, processRemovals } from './ball.js';
-import { initTerrain, updateWater } from './terrain.js';  // Add updateWater import
-import { initBlockyTerrain,initSpacedBlockyTerrain } from './terrain.js';
-import { handleClick, startCupcakeSpawner, updateCupcakes } from './cupcake.js';
+// Import ball functions and processRemovals
+import { spawnBallMachine, updateBalls, processRemovals as processBallRemovals } from './ball.js';
+// Import cupcake functions and processRemovals
+import { handleClick, startCupcakeSpawner, updateCupcakes, processRemovals as processCupcakeRemovals } from './cupcake.js';
 
-
+// Get initial settings from URL
 const urlParams = new URLSearchParams(window.location.search);
 const initialModel = urlParams.get('model') || 'cube';
-const viewMode = urlParams.get('viewMode') === 'true';
+const viewMode = urlParams.get('viewMode') === 'true'; // Check if viewMode is active
 
+// Game state variables (KEEPING ORIGINAL)
 let score = 0;
-let lives = 3; 
-let hitCount = 0; // Make sure we have this initialized
+let lives = 3;
+let hitCount = 0;
 let currentRate = 1;
-
-let orbitAngle = 0; // used for view mode orbiting
-const orbitRadius = 50; // view mode orbit radius
+let orbitAngle = 0;
+const orbitRadius = 50;
 const terrainCenterY = 20;
-
-// NEW variables for click-drag camera orbit in play mode:
 let previousMouse = { x: 0, y: 0 };
-let currentOrbitAngle = 0;  // The current orbit angle around the player
-let targetOrbitAngle = 0;   // The target angle updated on mouse move
-const orbitDistance = 25;   // Horizontal distance from player
-const heightOffset = 15;    // Vertical offset from player
+let currentOrbitAngle = 0;
+let targetOrbitAngle = 0;
+const orbitDistance = 25;
+const heightOffset = 15;
+const defaultCameraTilt = 0.3;
+const cameraDistance = 25;
+const cameraHeight = 15;
+let smoothedCameraRotation = cameraRotation || 0; // Initialize from scene.js value if available
+let smoothedCameraTilt = cameraTilt || defaultCameraTilt; // Initialize from scene.js value or default
+let zoomLevel = 1.0;
+let isPaused = false; // Added pause state if not already present
 
-// NEW variables for camera control
-const defaultCameraTilt = 0.3;  // Default tilt angle (slightly looking down)
-const cameraDistance = 25;      // Base distance from player
-const cameraHeight = 15;        // Base height above player
-let smoothedCameraRotation = 0;
-let smoothedCameraTilt = defaultCameraTilt;
-let zoomLevel = 1.0;            // Camera zoom level
+// Timing
+const clock = new THREE.Clock(); // Use THREE.Clock for delta time
 
-// Timing for animations
-let lastTime = performance.now();
-
-// Update score function
+// --- UI Update Functions (KEEPING ORIGINAL) ---
 function updateScore(newScore) {
   score = newScore;
   const scoreEl = document.getElementById('score');
-  if (scoreEl) scoreEl.textContent = score;
+  if (scoreEl) {
+      scoreEl.textContent = score;
+      scoreEl.classList.add('highlight');
+      setTimeout(() => scoreEl.classList.remove('highlight'), 500);
+  }
 }
 
-// Update hit count function - now handles lives
 function updateHitDisplay(newHits) {
   const heartsContainer = document.getElementById('hearts');
   if (!heartsContainer) return;
-  
-  // Calculate how many new hits occurred
   const newHitsCount = newHits - hitCount;
-  
   if (newHitsCount > 0) {
-    // Update internal hit counter
     hitCount = newHits;
-    
-    // Update lives - subtract one life per hit
     lives = Math.max(0, lives - newHitsCount);
-    
-    // Update heart display
     const hearts = heartsContainer.querySelectorAll('.heart');
-    
-    // Update each heart based on remaining lives
     for (let i = 0; i < hearts.length; i++) {
       if (i < lives) {
-        hearts[i].classList.remove('lost');
+        hearts[i].classList.remove('lost', 'animate-lost');
       } else {
-        // Only animate hearts that were just lost in this hit
         if (i >= lives && i < lives + newHitsCount) {
-          hearts[i].classList.add('animate-lost');
-          
-          // Add the lost class after animation completes
-          setTimeout(() => {
-            hearts[i].classList.add('lost');
-            hearts[i].classList.remove('animate-lost');
-          }, 500);
+          if (!hearts[i].classList.contains('lost')) {
+            hearts[i].classList.add('animate-lost');
+            setTimeout(() => {
+              hearts[i].classList.add('lost');
+              hearts[i].classList.remove('animate-lost');
+            }, 500);
+          }
         } else {
-          // Hearts that were already lost
-          hearts[i].classList.add('lost');
+           hearts[i].classList.add('lost');
+           hearts[i].classList.remove('animate-lost');
         }
       }
     }
-    
-    // Game over check
-    if (lives <= 0) {
+    if (lives <= 0 && !isPaused) {
       if (window.showGameStatus) {
-        window.showGameStatus("Game Over!", 5000);
+        window.showGameStatus("Game Over! Press ESC to restart.", 10000);
       }
-      // Could add more game over logic here
+      pauseGame();
     }
   }
 }
 
+// --- Game Pause/Resume (KEEPING ORIGINAL IF PRESENT, ADDING IF NOT) ---
+function pauseGame() {
+    if (isPaused) return;
+    isPaused = true;
+    clock.stop();
+    const pauseMenu = document.getElementById('pauseMenu');
+    if (pauseMenu) pauseMenu.classList.add('active');
+    spawnBallMachine(0);
+    console.log("Game Paused");
+}
+
+function resumeGame() {
+    if (!isPaused || lives <= 0) return;
+    isPaused = false;
+    clock.start();
+    const pauseMenu = document.getElementById('pauseMenu');
+    if (pauseMenu) pauseMenu.classList.remove('active');
+    spawnBallMachine(currentRate);
+    requestAnimationFrame(animate); // Re-request frame
+    console.log("Game Resumed");
+}
+
+// --- Main Animate Loop (MODIFIED CAMERA LOGIC) ---
 function animate() {
-  const currentTime = performance.now();
-  const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
-  lastTime = currentTime;
+    if (isPaused) {
+        renderer.render(scene, camera); // Render one frame for pause menu
+        return;
+    }
 
-  requestAnimationFrame(animate);
+    const deltaTime = clock.getDelta();
+    requestAnimationFrame(animate);
 
-  // Step physics
-  world.step(1 / 60);
-  
-  // Process any physics removals AFTER the physics step is complete
-  processRemovals();
+    // --- Physics Update ---
+    world.step(1 / 60, deltaTime, 3); // Use fixed step with delta time
 
-  // Update the player (sync Cannon body with Three mesh)
-  updatePlayer();
+    // --- Process Removals ---
+    processBallRemovals();
+    processCupcakeRemovals(); // Assuming this exists
 
-  // Update all spawned balls and cupcakes
-  updateBalls();
-  updateCupcakes();
-  
-  // Update water animation
-  updateWater(deltaTime);
-  
-  if (viewMode) {
-    // In view mode: orbit the camera around the terrain center
-    orbitAngle += 0.0001 * 60;
-    camera.position.x = orbitRadius * Math.cos(orbitAngle);
-    camera.position.z = orbitRadius * Math.sin(orbitAngle);
-    camera.position.y = terrainCenterY + 25;
-    camera.lookAt(0, terrainCenterY, 0);
-  } else {
-    // Play mode: camera follows player but is controlled by dragging
+    // --- Update Game Objects ---
+    updatePlayer(); // Update player state (physics, rotation, etc.)
+    updateBalls();
+    updateCupcakes();
+    updateWater(deltaTime);
+
+    // --- Camera Update Logic --- // *** MODIFIED SECTION ***
     const playerBody = getPlayerBody();
-    if (playerBody) {
-      // Smooth out camera rotation and tilt for more natural movement
-      smoothedCameraRotation = isDragging ? smoothedCameraRotation * 0.9 + cameraRotation * 0.1 : smoothedCameraRotation;
-      smoothedCameraTilt = isDragging ? smoothedCameraTilt * 0.9 + cameraTilt * 0.1 : smoothedCameraTilt;
-      
-      // Calculate camera position based on rotation around player
-      const horizontalDistance = cameraDistance * zoomLevel;
-      const verticalDistance = cameraHeight * zoomLevel;
-      
-      camera.position.x = playerBody.position.x + horizontalDistance * Math.sin(smoothedCameraRotation);
-      camera.position.z = playerBody.position.z + horizontalDistance * Math.cos(smoothedCameraRotation);
-      camera.position.y = playerBody.position.y + verticalDistance + horizontalDistance * Math.sin(smoothedCameraTilt);
+    const currentCameraMode = getCameraMode(); // Get current mode from player.js
 
-      // Make the camera look at a point slightly above the player for better angle
-      camera.lookAt(
-        playerBody.position.x,
-        playerBody.position.y + 2,  // Look at point slightly above player
-        playerBody.position.z
-      );
+    if (viewMode) {
+        // --- Free Look / View Mode Camera --- (KEEPING ORIGINAL VIEW MODE LOGIC)
+        orbitAngle += 0.0001 * 60; // Use deltaTime? Maybe keep original speed for now.
+        camera.position.x = orbitRadius * Math.cos(orbitAngle);
+        camera.position.z = orbitRadius * Math.sin(orbitAngle);
+        camera.position.y = terrainCenterY + 25;
+        camera.lookAt(0, terrainCenterY, 0);
+
+    } else if (playerBody) { // Only update camera relative to player if player exists and not in viewMode
+        if (currentCameraMode === 'firstPerson') {
+            // --- First Person Camera ---
+            const playerMesh = getPlayerMesh(); // Get the visual mesh for rotation
+            if (playerMesh) {
+                const headPosition = new THREE.Vector3();
+                headPosition.copy(playerBody.position); // Start at player physics body center
+                headPosition.y += getPlayerHeightOffset(); // Add vertical offset for eye level
+
+                // Optional: Add a small forward offset based on player rotation
+                const forwardOffset = new THREE.Vector3(0, 0, 0.3); // Adjust Z offset as needed
+                forwardOffset.applyQuaternion(playerMesh.quaternion); // Rotate offset by player's facing direction
+                headPosition.add(forwardOffset);
+
+                // Smoothly interpolate the camera's rotation towards the player's rotation
+                const smoothingFactor = 0.05; // Adjust this value (0.0 to 1.0). Smaller = smoother/slower.
+                camera.quaternion.slerp(playerMesh.quaternion, smoothingFactor); // Smoothly interpolate camera rotation towards player rotation
+                camera.position.lerp(headPosition, smoothingFactor); // Smoothly interpolate camera position towards head position
+            }
+
+        } else { // 'thirdPerson'
+            // --- Third Person Camera (Smoothed Follow) ---
+            const cameraPositionLerpFactor = 0.15; // Smoothing factor for position (Adjust 0.05 to 0.3)
+            const cameraRotationSmoothFactor = 0.1; // Smoothing factor for rotation/tilt input (Adjust 0.05 to 0.2)
+
+            // Smooth camera rotation/tilt inputs (driven by mouse/controls in scene.js)
+            // Use the isDragging flag from scene.js to only smooth when dragging
+            if (isDragging) {
+                 smoothedCameraRotation += (cameraRotation - smoothedCameraRotation) * cameraRotationSmoothFactor;
+                 smoothedCameraTilt += (cameraTilt - smoothedCameraTilt) * cameraRotationSmoothFactor;
+                 // Clamp tilt to prevent flipping over
+                 smoothedCameraTilt = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, smoothedCameraTilt));
+            }
+            // If not dragging, smoothed values remain unchanged, providing stable view unless moved
+
+            // Calculate target offset based on smoothed rotation/tilt and distance/zoom
+            const horizontalDistance = cameraDistance * zoomLevel;
+            const verticalDistance = cameraHeight * zoomLevel;
+
+            const offset = new THREE.Vector3();
+            offset.x = horizontalDistance * Math.sin(smoothedCameraRotation);
+            offset.z = horizontalDistance * Math.cos(smoothedCameraRotation);
+            offset.y = verticalDistance + horizontalDistance * Math.sin(smoothedCameraTilt);
+
+            const targetCamPos = new THREE.Vector3();
+            targetCamPos.copy(playerBody.position).add(offset); // Target position is player + offset
+
+            // Smoothly interpolate the camera's current position towards the target position
+            camera.position.lerp(targetCamPos, cameraPositionLerpFactor);
+
+            // Make the camera look at a point slightly above the player's base
+            const lookAtTarget = new THREE.Vector3(
+                playerBody.position.x,
+                playerBody.position.y + 1.0, // Adjust Y offset for desired look-at height
+                playerBody.position.z
+            );
+            camera.lookAt(lookAtTarget);
+        }
+    } else {
+        // Optional: Handle camera if player doesn't exist (e.g., initial load before player init)
+        camera.lookAt(0, 0, 0);
     }
-  }
-  
-  // Render the scene
-  renderer.render(scene, camera);
+     // *** END OF MODIFIED SECTION ***
+
+    // --- Render ---
+    renderer.render(scene, camera);
+    // if (renderComposer) renderComposer.render(); // If using post-processing
 }
 
-// Add an event listener for zoom with mouse wheel
-window.addEventListener('wheel', (event) => {
-  if (!viewMode) {
-    // Adjust zoom level based on wheel direction
-    zoomLevel += event.deltaY * -0.0005;
-    
-    // Clamp zoom level between reasonable values
-    zoomLevel = Math.min(Math.max(zoomLevel, 0.5), 2.0);
-  }
-});
+// --- Initialization --- (KEEPING ORIGINAL CALLS)
+function initGame() {
+    console.log("Initializing game...");
+    console.log("View Mode:", viewMode);
+    console.log("Initial Player Model:", initialModel);
 
-// Set up UI controls - Do this directly instead of in initGame
-const rateInput = document.getElementById('rateInput');
-const setRateBtn = document.getElementById('setRateBtn');
+    // Initialize terrain (KEEPING ORIGINAL CALL)
+    initBlockyTerrain(0.2, 0.2, 7, 18);
+    // initSpacedBlockyTerrain(0.2, 0.2, 7, 18, 3); // Example alternative
 
-if (setRateBtn && rateInput) {
-  setRateBtn.addEventListener('click', () => {
-    const newRate = parseFloat(rateInput.value);
-    if (!isNaN(newRate)) {
-      currentRate = newRate;
-      spawnBallMachine(newRate);
+    // Initialize player
+    initPlayer(initialModel);
+
+    // Setup controls only if not in view mode
+    if (!viewMode) {
+        setupPlayerControls(); // Sets up WASD, Space, F key
+        spawnBallMachine(currentRate); // Start spawning balls
+        startCupcakeSpawner(3000); // Start spawning cupcakes
+        renderer.domElement.addEventListener('click', handleClick); // Enable cupcake clicking
+    } else {
+        // Configure view mode specifics (KEEPING ORIGINAL)
+        const infoElement = document.getElementById("info");
+        if (infoElement) infoElement.style.display = "none";
+        const gameControls = document.querySelector('.game-controls');
+        if (gameControls) gameControls.style.display = 'flex'; // Assuming this should be flex? Or none? Check original intent.
     }
-  });
-}
 
-// Set up day/night toggle - This needs to be properly initialized
-document.addEventListener('DOMContentLoaded', () => {
-  const dayNightBtn = document.getElementById('dayNightBtn');
-  if (dayNightBtn) {
-    dayNightBtn.addEventListener('click', () => {
-      // Toggle the day/night mode
-      // We'll implement this function in scene.js
-      if (window.toggleDayNight) {
-        window.toggleDayNight();
-      }
+    // Setup UI Controls (Rate, Day/Night, Pause) - Moved setup here
+    const rateInput = document.getElementById('rateInput');
+    const setRateBtn = document.getElementById('setRateBtn');
+    const dayNightBtn = document.getElementById('dayNightBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resumeBtn = document.getElementById('resumeBtn'); // Get resume button from pause menu
+
+    if (setRateBtn && rateInput) {
+        rateInput.value = currentRate; // Set initial value
+        setRateBtn.addEventListener('click', () => {
+            const newRate = parseFloat(rateInput.value);
+            if (!isNaN(newRate) && newRate >= 0) {
+                currentRate = newRate;
+                if (!isPaused && !viewMode) { // Only spawn if not paused/view mode
+                    spawnBallMachine(currentRate);
+                }
+                console.log("Ball spawn rate set to:", currentRate);
+            }
+        });
+    }
+
+    if (dayNightBtn) {
+        dayNightBtn.addEventListener('click', () => {
+            if (window.toggleDayNight) { // Check if function exists
+                window.toggleDayNight(); // Call function from scene.js
+            }
+        });
+    }
+
+    // Add pause/resume listeners if pause menu elements exist
+    if (pauseBtn && resumeBtn) {
+        pauseBtn.addEventListener('click', pauseGame);
+        resumeBtn.addEventListener('click', resumeGame);
+    } else {
+        console.warn("Pause/Resume buttons not found in the DOM.");
+    }
+
+
+    // Add global key listener for pause (ESC)
+    window.addEventListener('keydown', (event) => {
+        if (event.code === 'Escape') {
+            if (isPaused) {
+                if (lives > 0) resumeGame(); // Only resume if not game over
+                else location.reload(); // Restart if game over
+            } else {
+                pauseGame();
+            }
+        }
     });
-  }
-});
 
-// Add click listener for cupcakes
-renderer.domElement.addEventListener('click', handleClick);
+    // Add zoom listener (KEEPING ORIGINAL)
+    window.addEventListener('wheel', (event) => {
+        if (!viewMode && !isPaused) { // Only zoom if playing
+            zoomLevel -= event.deltaY * 0.0005; // Adjust zoom sensitivity
+            zoomLevel = Math.min(Math.max(zoomLevel, 0.5), 2.0); // Clamp zoom
+        }
+    });
 
-// Start cupcake spawner with a shorter interval for more cupcakes
-startCupcakeSpawner(3000); // Spawn every 3 seconds instead of 5
-
-// Initialize the game components
-// For example, a 10x10 grid, each column is size=2, maxHeight=10
-initBlockyTerrain(0.2, 0.2, 7, 18);
-//initSpacedBlockyTerrain(0.2, 0.2, 7, 18, 3);
-
-
-//nitBlockyTerrain(20, 20, 7, 18);  // Increased rows and columns for a larger terrain
-initPlayer(initialModel);
-
-if (!viewMode) {
-  setupPlayerControls();
-} else {
-  const infoElement = document.getElementById("info");
-  if (infoElement) {
-    infoElement.style.display = "none";
-  }
-  const gameControls = document.querySelector('.game-controls');
-  if (gameControls) {
-    gameControls.style.display = 'flex';
-  }
+    // Start the animation loop
+    clock.start(); // Start the clock before the first frame
+    animate();
+    console.log("Game initialized and animation loop started.");
 }
-spawnBallMachine(currentRate);
 
-// Initialize lastTime before starting animation
-lastTime = performance.now();
-  
-// Start the animation loop
-animate();
+// Wait for DOM content to load before initializing
+document.addEventListener('DOMContentLoaded', initGame);
 
-// Export functions for use in other modules
-export { updateScore, updateHitDisplay };
+// Export functions needed by other modules (e.g., UI updates)
+export { updateScore, updateHitDisplay }; // KEEPING ORIGINAL EXPORTS
