@@ -14,6 +14,13 @@ const wallMaterial = new CANNON.Material("wallMaterial");
 const cupcakeMaterial = new CANNON.Material("cupcakeMaterial");
 const playerMaterial = new CANNON.Material("playerMaterial");
 
+const playerToWallContact = new CANNON.ContactMaterial(playerMaterial, wallMaterial, {
+  friction: 0.1,      // Low friction against walls/terrain
+  restitution: 0.1    // Very low bounciness against terrain
+});
+world.addContactMaterial(playerToWallContact);
+
+
 const ballToWallContact = new CANNON.ContactMaterial(ballMaterial, wallMaterial, {
   friction: 0.1,
   restitution: 0.4  // Bounciness
