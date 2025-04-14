@@ -52,7 +52,7 @@ function createTriangularColumnMesh(columnSize, height, color, isUpsideDown = fa
         // Load dirt texture for regular pillars
         const textureLoader = new THREE.TextureLoader();
         const dirtTexture = textureLoader.load(
-            'assets/Ground_texture.jpeg',
+            'ICG/assets/Ground_texture.jpeg',
             (texture) => {
                 // console.log("Ground texture loaded successfully."); // Optional log
                 texture.encoding = THREE.sRGBEncoding;
@@ -323,7 +323,7 @@ function addWater(waterHeight, waterSize) {
     // Load water texture
     const textureLoader = new THREE.TextureLoader();
     const waterTexture = textureLoader.load(
-        'assets/water-003.jpg',
+        'ICG/assets/water-003.jpg',
         (texture) => {
             texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
             texture.repeat.set(waterSize / 20, waterSize / 20);

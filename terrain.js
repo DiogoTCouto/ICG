@@ -208,7 +208,7 @@ function addWater(waterHeight, rows, cols, columnSize) {
   // Load water texture
   const textureLoader = new THREE.TextureLoader();
   const waterTexture = textureLoader.load(
-    'assets/water-003.jpg', // You'll need to add this texture to your assets
+    'ICG/assets/water-003.jpg', // You'll need to add this texture to your assets
     (texture) => {
       console.log("Water texture loaded successfully.");
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -559,7 +559,7 @@ function createNoiseTerrainMesh(data, elementSize, color = 0x88aa88) {
   // Load and apply the ground asset texture with debugging callbacks
   const loader = new THREE.TextureLoader();
   const groundTexture = loader.load(
-    'assets/Ground_texture.jpeg',
+    'ICG/assets/Ground_texture.jpeg',
     (texture) => {
       console.log("Ground texture loaded successfully.");
       texture.encoding = THREE.sRGBEncoding;
