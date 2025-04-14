@@ -17,7 +17,7 @@ const BALL_TYPES = [
     id: 'standard',
     color: 0xff0000,     // Red
     trailColor: 0xff6666,
-    size: 0.5,
+    size: 1.5,
     mass: 1,
     damping: 0.5,
     glow: false,
@@ -28,7 +28,7 @@ const BALL_TYPES = [
     id: 'heavy',
     color: 0x333333,     // Dark grey
     trailColor: 0x555555,
-    size: 0.7,
+    size: 2.0,
     mass: 3,
     damping: 0.2,        // Less damping = moves faster
     glow: false,
@@ -39,7 +39,7 @@ const BALL_TYPES = [
     id: 'light',
     color: 0x00aaff,     // Light blue
     trailColor: 0x99ddff,
-    size: 0.4,
+    size: 2.0,
     mass: 0.5,
     damping: 0.6,        // More damping = moves slower
     glow: true,
