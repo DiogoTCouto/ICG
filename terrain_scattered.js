@@ -323,7 +323,7 @@ function addWater(waterHeight, waterSize) {
     // Load water texture
     const textureLoader = new THREE.TextureLoader();
     const waterTexture = textureLoader.load(
-        'ICG/assets/water-003.jpg',
+        'ICG/assets/Water-003.jpg',
         (texture) => {
             texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
             texture.repeat.set(waterSize / 20, waterSize / 20);

@@ -208,7 +208,7 @@ function addWater(waterHeight, rows, cols, columnSize) {
   // Load water texture
   const textureLoader = new THREE.TextureLoader();
   const waterTexture = textureLoader.load(
-    'ICG/assets/water-003.jpg', // You'll need to add this texture to your assets
+    'ICG/assets/Water-003.jpg', // You'll need to add this texture to your assets
     (texture) => {
       console.log("Water texture loaded successfully.");
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
