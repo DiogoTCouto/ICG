@@ -3,6 +3,8 @@
 // Set player-wall friction to zero to reduce getting stuck on terrain edges.
 
 // 1) Create the physics world
+import * as THREE from 'three';
+
 const world = new CANNON.World();
 world.gravity.set(0, -40, 0); // Increased gravity further (try -20, -25, or -30)
 world.broadphase = new CANNON.NaiveBroadphase(); // Simple broadphase

@@ -52,7 +52,7 @@ function createTriangularColumnMesh(columnSize, height, color, isUpsideDown = fa
         // Load dirt texture for regular pillars
         const textureLoader = new THREE.TextureLoader();
         const dirtTexture = textureLoader.load(
-            'ICG/assets/Ground_texture.jpeg',
+            'ICG/assets/wood_2.jpg', // Ensure this path is correct
             (texture) => {
                 // console.log("Ground texture loaded successfully."); // Optional log
                 texture.encoding = THREE.sRGBEncoding;
@@ -130,7 +130,7 @@ function createGoalMarker(position) {
     marker.position.copy(position);
     marker.position.y += markerHeight / 2 + 0.1; // Place base slightly above pillar top
     marker.name = "GoalMarker"; // Name for identification if needed
-    scene.add(marker);
+    scene.add(marker); //
     return marker;
 }
 
@@ -164,77 +164,84 @@ export function initSpacedBlockyTerrain(rows, cols, columnSize, maxHeight, spaci
     const highColor = new THREE.Color(0x88aaff); // Light blue for high areas
 
     // Calculate spacing for a proper triangular tessellation with additional space
-    const baseWidth = columnSize * spacingFactor;
+    const baseWidth = columnSize * spacingFactor; //
     const baseHeightSpacing = baseWidth * Math.sqrt(3) / 2; // Triangle height for spacing
 
     // Calculate the x and z offsets for tessellation
-    const xOffset = baseWidth / 2;
-    const zOffset = baseHeightSpacing / 2;
+    const xOffset = baseWidth / 2; //
+    const zOffset = baseHeightSpacing / 2; //
 
     // Create a grid
     const bufferSize = 2;
 
     // Determine goal pillar coordinates
-    const goalRow = rows - 1 - bufferSize;
-    const goalCol = cols - 1 - bufferSize;
-    let goalPillarIndex = -1;
-    let currentPillarIndex = 0;
+    const goalRow = rows - 1 - bufferSize; //
+    const goalCol = cols - 1 - bufferSize; //
+    let goalPillarIndex = -1; //
+    let currentPillarIndex = 0; //
 
-    console.log(`Attempting to place goal near row ${goalRow}, col ${goalCol}`);
+    console.log(`Attempting to place goal near row ${goalRow}, col ${goalCol}`); //
 
     // Loop through rows and columns to create triangular grid
     for (let row = -bufferSize; row < rows + bufferSize; row++) {
         for (let col = -bufferSize; col < cols + bufferSize; col++) {
             // Calculate base positions with increased spacing
-            const xPos = col * baseWidth;
-            const zPos = row * baseHeightSpacing;
+            const xPos = col * baseWidth; //
+            const zPos = row * baseHeightSpacing; //
 
             // Create both triangles for each grid cell
             for (let triangleType = 0; triangleType < 2; triangleType++) {
-                const isUpsideDown = triangleType === 1;
+                const isUpsideDown = triangleType === 1; //
 
                 // Calculate exact position based on triangle type
-                let triangleX = xPos;
-                let triangleZ = zPos;
+                let triangleX = xPos; //
+                let triangleZ = zPos; //
 
                 if (isUpsideDown) {
-                    triangleX += xOffset;
-                    triangleZ += zOffset;
+                    triangleX += xOffset; //
+                    triangleZ += zOffset; //
                 }
 
                 // Use noise to generate height
-                const noiseValue = noise2D(triangleX * noiseScale, triangleZ * noiseScale);
-                const normalizedNoise = (noiseValue + 1) * 0.5;
-                const columnHeight = normalizedNoise * heightScale + baseHeight;
+                const noiseValue = noise2D(triangleX * noiseScale, triangleZ * noiseScale); //
+                const normalizedNoise = (noiseValue + 1) * 0.5; //
+                const columnHeight = normalizedNoise * heightScale + baseHeight; //
 
                 // Track lowest point for water placement
-                lowestPoint = Math.min(lowestPoint, columnHeight);
+                lowestPoint = Math.min(lowestPoint, columnHeight); //
 
                 // Calculate color based on height
-                const heightRatio = (columnHeight - baseHeight) / heightScale;
-                let color;
+                const heightRatio = (columnHeight - baseHeight) / heightScale; //
+                let color; //
                 if (heightRatio < 0.5) {
-                    color = lowColor.clone().lerp(midColor, heightRatio * 2);
+                    color = lowColor.clone().lerp(midColor, heightRatio * 2); //
                 } else {
-                    color = midColor.clone().lerp(highColor, (heightRatio - 0.5) * 2);
+                    color = midColor.clone().lerp(highColor, (heightRatio - 0.5) * 2); //
                 }
 
                 // Check if this pillar should be the goal pillar
-                const isDesignatedGoal = (row === goalRow && col === goalCol && triangleType === 0);
+                const isDesignatedGoal = (row === goalRow && col === goalCol && triangleType === 0); //
                 if (isDesignatedGoal) {
-                    goalPillarIndex = currentPillarIndex;
-                    console.log(`Designated Goal Pillar at index ${goalPillarIndex} (Row: ${row}, Col: ${col})`);
+                    goalPillarIndex = currentPillarIndex; //
+                    console.log(`Designated Goal Pillar at index ${goalPillarIndex} (Row: ${row}, Col: ${col})`); //
                 }
 
                 // Create mesh (pass isGoal flag)
-                const mesh = createTriangularColumnMesh(columnSize, columnHeight, color.getHex(), isUpsideDown, isDesignatedGoal);
-                mesh.position.set(triangleX, columnHeight * 0.5, triangleZ);
-                scene.add(mesh);
+                const mesh = createTriangularColumnMesh(columnSize, columnHeight, color.getHex(), isUpsideDown, isDesignatedGoal); //
+                mesh.position.set(triangleX, columnHeight * 0.5, triangleZ); //
+                scene.add(mesh); //
 
                 // Create physics body
-                const body = createTriangularColumnBody(columnSize, columnHeight, isUpsideDown);
-                body.position.set(triangleX, columnHeight * 0.5, triangleZ);
-                world.addBody(body);
+                const body = createTriangularColumnBody(columnSize, columnHeight, isUpsideDown); //
+                body.position.set(triangleX, columnHeight * 0.5, triangleZ); //
+                world.addBody(body); //
+
+                // *** ADDED: Set the isGoal flag on the physics body ***
+                if (isDesignatedGoal) {
+                  body.isGoal = true; // Add the flag here
+                }
+                // *** END ADDED ***
+
 
                 // Store column data
                 terrainColumns.push({
@@ -245,60 +252,63 @@ export function initSpacedBlockyTerrain(rows, cols, columnSize, maxHeight, spaci
                     isUpsideDown: isUpsideDown,
                     mesh: mesh,
                     body: body
-                });
+                }); //
 
-                currentPillarIndex++;
+                currentPillarIndex++; //
             }
         }
     }
 
     // After generating all pillars, finalize the goal pillar
     if (goalPillarIndex !== -1 && goalPillarIndex < terrainColumns.length) {
-        const goalData = terrainColumns[goalPillarIndex];
+        const goalData = terrainColumns[goalPillarIndex]; //
         goalPillarData = {
             mesh: goalData.mesh,
             body: goalData.body,
             position: new THREE.Vector3(goalData.x, goalData.height, goalData.z)
-        };
+        }; //
         // Add a visual marker on top of the goal pillar
-        const markerPosition = new THREE.Vector3(goalData.x, goalData.height / 2, goalData.z);
-        markerPosition.y += goalData.height / 2;
-        createGoalMarker(markerPosition);
-        console.log("Goal Pillar successfully created and marked.");
+        const markerPosition = new THREE.Vector3(goalData.x, goalData.height / 2, goalData.z); //
+        markerPosition.y += goalData.height / 2; //
+        createGoalMarker(markerPosition); //
+        // Ensure the body has the flag, even if assigned here (safety check)
+        goalPillarData.body.isGoal = true; //
+        console.log("Goal Pillar successfully created and marked."); //
     } else {
-        console.warn("Could not designate a goal pillar. Check goalRow/goalCol logic.");
+        console.warn("Could not designate a goal pillar. Check goalRow/goalCol logic."); //
         // Fallback: Designate the last pillar as the goal
         if (terrainColumns.length > 0) {
-             const lastPillarIndex = terrainColumns.length - 1;
-             const goalData = terrainColumns[lastPillarIndex];
+             const lastPillarIndex = terrainColumns.length - 1; //
+             const goalData = terrainColumns[lastPillarIndex]; //
              goalPillarData = {
                  mesh: goalData.mesh, // Placeholder, will be replaced
-                 body: goalData.body,
-                 position: new THREE.Vector3(goalData.x, goalData.height, goalData.z)
-             };
+                 body: goalData.body, //
+                 position: new THREE.Vector3(goalData.x, goalData.height, goalData.z) //
+             }; //
              // Remake the last pillar's mesh with goal material and add marker
              scene.remove(goalData.mesh); // Remove old mesh
-             const newGoalMesh = createTriangularColumnMesh(columnSize, goalData.height, 0, goalData.isUpsideDown, true);
-             newGoalMesh.position.copy(goalData.body.position);
-             scene.add(newGoalMesh);
+             const newGoalMesh = createTriangularColumnMesh(columnSize, goalData.height, 0, goalData.isUpsideDown, true); //
+             newGoalMesh.position.copy(goalData.body.position); //
+             scene.add(newGoalMesh); //
              goalData.mesh = newGoalMesh; // Update reference in terrainColumns
              goalPillarData.mesh = newGoalMesh; // Update reference in goalPillarData
+             goalPillarData.body.isGoal = true; // Set flag on fallback body
 
-             const markerPosition = new THREE.Vector3(goalData.x, goalData.height, goalData.z);
-             createGoalMarker(markerPosition);
-             console.log("Designated the last pillar as the goal pillar as fallback.");
+             const markerPosition = new THREE.Vector3(goalData.x, goalData.height, goalData.z); //
+             createGoalMarker(markerPosition); //
+             console.log("Designated the last pillar as the goal pillar as fallback."); //
         }
     }
 
     // Add safety floor
-    createSafetyFloor(-30);
+    createSafetyFloor(-30); //
 
     // Calculate water level
-    waterLevel = lowestPoint + 1.0;
+    waterLevel = lowestPoint + 1.0; //
 
     // Add water plane
-    const terrainSpan = Math.max(rows, cols) * baseWidth;
-    addWater(waterLevel, terrainSpan * 1.5);
+    const terrainSpan = Math.max(rows, cols) * baseWidth; //
+    addWater(waterLevel, terrainSpan * 1.5); //
 }
 
 
@@ -310,35 +320,35 @@ export function initSpacedBlockyTerrain(rows, cols, columnSize, maxHeight, spaci
 function addWater(waterHeight, waterSize) {
     // Remove existing water if any
     if (waterMesh) {
-        scene.remove(waterMesh);
-        if (waterMesh.geometry) waterMesh.geometry.dispose();
-        if (waterMesh.material) waterMesh.material.dispose();
-        waterMesh = null;
+        scene.remove(waterMesh); //
+        if (waterMesh.geometry) waterMesh.geometry.dispose(); //
+        if (waterMesh.material) waterMesh.material.dispose(); //
+        waterMesh = null; //
     }
 
     // Create water geometry
-    const waterGeometry = new THREE.PlaneGeometry(waterSize, waterSize, 32, 32);
-    waterGeometry.rotateX(-Math.PI / 2);
+    const waterGeometry = new THREE.PlaneGeometry(waterSize, waterSize, 32, 32); //
+    waterGeometry.rotateX(-Math.PI / 2); //
 
     // Load water texture
-    const textureLoader = new THREE.TextureLoader();
+    const textureLoader = new THREE.TextureLoader(); //
     const waterTexture = textureLoader.load(
-        'ICG/assets/Water-003.jpg',
+        'ICG/assets/water1.jpg', //
         (texture) => {
-            texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-            texture.repeat.set(waterSize / 20, waterSize / 20);
+            texture.wrapS = texture.wrapT = THREE.RepeatWrapping; //
+            texture.repeat.set(waterSize / 20, waterSize / 20); //
         },
         undefined,
         (error) => {
-            console.error("Error loading water texture:", error);
-             if (!waterMesh) {
-                 waterMesh = new THREE.Mesh(waterGeometry);
-                 scene.add(waterMesh);
-             }
+            console.error("Error loading water texture:", error); //
+             if (!waterMesh) { //
+                 waterMesh = new THREE.Mesh(waterGeometry); //
+                 scene.add(waterMesh); //
+             } //
             waterMesh.material = new THREE.MeshPhongMaterial({
                 color: 0x3366ff, transparent: true, opacity: 0.8,
                 specular: 0x111111, shininess: 50, side: THREE.DoubleSide
-            });
+            }); //
         }
     );
 
@@ -347,15 +357,15 @@ function addWater(waterHeight, waterSize) {
         color: 0x3366ff, map: waterTexture, transparent: true, opacity: 0.8,
         specular: 0x6699ff, shininess: 100, side: THREE.DoubleSide,
         envMap: scene.environment, reflectivity: 0.3
-    });
+    }); //
 
     // Create water mesh
-    waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
-    waterMesh.position.y = waterHeight;
-    scene.add(waterMesh);
+    waterMesh = new THREE.Mesh(waterGeometry, waterMaterial); //
+    waterMesh.position.y = waterHeight; //
+    scene.add(waterMesh); //
 
     // Add water animation
-    startWaterAnimation(waterMesh);
+    startWaterAnimation(waterMesh); //
 }
 
 /**
@@ -363,38 +373,38 @@ function addWater(waterHeight, waterSize) {
  * @param {THREE.Mesh} waterMesh - The water mesh to animate
  */
 function startWaterAnimation(waterMesh) {
-    const geometry = waterMesh.geometry;
-    if (!geometry.attributes.position) return;
+    const geometry = waterMesh.geometry; //
+    if (!geometry.attributes.position) return; //
 
-    const vertexCount = geometry.attributes.position.count;
-    const positions = geometry.attributes.position.array;
-    const originalPositions = positions.slice();
+    const vertexCount = geometry.attributes.position.count; //
+    const positions = geometry.attributes.position.array; //
+    const originalPositions = positions.slice(); //
 
     // Wave parameters
-    const amplitude = 0.15;
-    const frequency = 0.1;
-    const timeScale = 0.4;
-    let animationFrameId = null;
+    const amplitude = 0.15; //
+    const frequency = 0.1; //
+    const timeScale = 0.4; //
+    let animationFrameId = null; //
 
     // Animation function
     function animateWater() {
-        if (!waterMesh || !waterMesh.parent) {
-             if (animationFrameId) cancelAnimationFrame(animationFrameId);
-             return;
-        }
-        const time = performance.now() * 0.001 * timeScale;
-        for (let i = 0; i < vertexCount; i++) {
-            const x = originalPositions[i * 3];
-            const z = originalPositions[i * 3 + 2];
+        if (!waterMesh || !waterMesh.parent) { //
+             if (animationFrameId) cancelAnimationFrame(animationFrameId); //
+             return; //
+        } //
+        const time = performance.now() * 0.001 * timeScale; //
+        for (let i = 0; i < vertexCount; i++) { //
+            const x = originalPositions[i * 3]; //
+            const z = originalPositions[i * 3 + 2]; //
             positions[i * 3 + 1] = originalPositions[i * 3 + 1] +
                 amplitude * Math.sin(x * frequency + time) *
-                Math.cos(z * frequency + time * 0.5);
-        }
-        geometry.attributes.position.needsUpdate = true;
-        geometry.computeVertexNormals();
-        animationFrameId = requestAnimationFrame(animateWater);
+                Math.cos(z * frequency + time * 0.5); //
+        } //
+        geometry.attributes.position.needsUpdate = true; //
+        geometry.computeVertexNormals(); //
+        animationFrameId = requestAnimationFrame(animateWater); //
     }
-    animateWater();
+    animateWater(); //
 }
 
 
@@ -403,24 +413,24 @@ function startWaterAnimation(waterMesh) {
  * @param {number} yPosition - The y-coordinate for the floor
  */
 function createSafetyFloor(yPosition) {
-    const floorSize = 1000;
-    const floorThickness = 1;
+    const floorSize = 1000; //
+    const floorThickness = 1; //
 
     // Physics body
-    const floorShape = new CANNON.Box(new CANNON.Vec3(floorSize / 2, floorThickness / 2, floorSize / 2));
-    const floorBody = new CANNON.Body({ mass: 0, material: wallMaterial });
-    floorBody.addShape(floorShape);
-    floorBody.position.set(0, yPosition, 0);
-    world.addBody(floorBody);
+    const floorShape = new CANNON.Box(new CANNON.Vec3(floorSize / 2, floorThickness / 2, floorSize / 2)); //
+    const floorBody = new CANNON.Body({ mass: 0, material: wallMaterial }); //
+    floorBody.addShape(floorShape); //
+    floorBody.position.set(0, yPosition, 0); //
+    world.addBody(floorBody); //
 
     // Visual mesh
-    const floorGeometry = new THREE.BoxGeometry(floorSize, floorThickness, floorSize);
+    const floorGeometry = new THREE.BoxGeometry(floorSize, floorThickness, floorSize); //
     const floorMaterial = new THREE.MeshBasicMaterial({
         color: 0x1a1a2a, transparent: true, opacity: 0.5
-    });
-    const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
-    floorMesh.position.set(0, yPosition, 0);
-    scene.add(floorMesh);
+    }); //
+    const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial); //
+    floorMesh.position.set(0, yPosition, 0); //
+    scene.add(floorMesh); //
 }
 
 /**
@@ -440,19 +450,19 @@ export function updateWater(deltaTime) {
  * @returns {Object | null} The nearest column data object or null if none exist.
  */
 export function findNearestColumn(x, z) {
-    if (terrainColumns.length === 0) return null;
-    let nearestColumn = null;
-    let minDistanceSq = Infinity;
-    for (const column of terrainColumns) {
-        const dx = column.x - x;
-        const dz = column.z - z;
-        const distanceSq = dx * dx + dz * dz;
-        if (distanceSq < minDistanceSq) {
-            minDistanceSq = distanceSq;
-            nearestColumn = column;
+    if (terrainColumns.length === 0) return null; //
+    let nearestColumn = null; //
+    let minDistanceSq = Infinity; //
+    for (const column of terrainColumns) { //
+        const dx = column.x - x; //
+        const dz = column.z - z; //
+        const distanceSq = dx * dx + dz * dz; //
+        if (distanceSq < minDistanceSq) { //
+            minDistanceSq = distanceSq; //
+            nearestColumn = column; //
         }
     }
-    return nearestColumn;
+    return nearestColumn; //
 }
 
 /**
@@ -464,16 +474,16 @@ export function findNearestColumn(x, z) {
  * @returns {Array} Array of column data objects within jumping distance
  */
 export function findJumpableColumns(x, z, maxDistance, maxHeightDiff) {
-    const currentColumn = findNearestColumn(x, z);
-    if (!currentColumn) return [];
-    const maxDistanceSq = maxDistance * maxDistance;
-    return terrainColumns.filter(column => {
-        if (column === currentColumn) return false;
-        const dx = column.x - x;
-        const dz = column.z - z;
-        const distanceSq = dx * dx + dz * dz;
-        const heightDiff = Math.abs(column.height - currentColumn.height);
-        return distanceSq <= maxDistanceSq && heightDiff <= maxHeightDiff;
+    const currentColumn = findNearestColumn(x, z); //
+    if (!currentColumn) return []; //
+    const maxDistanceSq = maxDistance * maxDistance; //
+    return terrainColumns.filter(column => { //
+        if (column === currentColumn) return false; //
+        const dx = column.x - x; //
+        const dz = column.z - z; //
+        const distanceSq = dx * dx + dz * dz; //
+        const heightDiff = Math.abs(column.height - currentColumn.height); //
+        return distanceSq <= maxDistanceSq && heightDiff <= maxHeightDiff; //
     });
 }
 

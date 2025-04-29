@@ -1,4 +1,6 @@
 // throwControl.js
+import * as THREE from 'three';
+
 import { createBall } from './ball.js';
 
 function initThrowControl() {
