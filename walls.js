@@ -1,4 +1,6 @@
 // walls.js
+import * as THREE from 'three';
+
 import { scene } from './scene.js';
 import { world, wallMaterial } from './physics.js';
 

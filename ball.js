@@ -1,4 +1,6 @@
 // ball.js
+import * as THREE from 'three';
+
 import { scene, createGlowingMaterial } from './scene.js';
 import { world, ballMaterial } from './physics.js';
 import { getPlayerBody } from './player.js';

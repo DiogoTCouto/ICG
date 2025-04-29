@@ -1,4 +1,6 @@
 // cupcake.js
+import * as THREE from 'three';
+
 import { scene, camera, renderer, createGlowingMaterial } from './scene.js';
 import { world, cupcakeMaterial } from './physics.js';
 import { terrainColumns } from './terrain.js';

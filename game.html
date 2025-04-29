@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>Dodge It!</title>
   <style>
-    
+    /* --- Styles remain the same as your provided HTML --- */
     :root {
       --primary-color: #4CAF50;
       --primary-dark: #388E3C;
@@ -16,15 +16,14 @@
       --panel-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
       --panel-border: 1px solid rgba(255, 255, 255, 0.18);
     }
-    
-    body { 
-      margin: 0; 
-      overflow: hidden; 
+
+    body {
+      margin: 0;
+      overflow: hidden;
       font-family: 'Poppins', sans-serif;
       color: var(--light-text);
     }
-    
-    /* Glass morphism effect for panels */
+
     .glassmorphism {
       background: rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(10px);
@@ -32,34 +31,34 @@
       border: var(--panel-border);
       box-shadow: var(--panel-shadow);
     }
-    
+
     .game-ui {
       position: absolute;
       top: 20px;
       left: 20px;
       z-index: 100;
-      display: flex; 
+      display: flex;
       flex-direction: column;
       gap: 20px;
       transition: all 0.3s ease;
     }
-    
+
     .ui-panel {
       border-radius: var(--panel-radius);
       padding: 20px;
       transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    
+
     .ui-panel:hover {
       transform: translateY(-5px);
       box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
     }
-    
+
     .stats {
       font-size: 20px;
       min-width: 180px;
     }
-    
+
     .stats-row {
       display: flex;
       align-items: center;
@@ -68,7 +67,7 @@
       position: relative;
       padding-left: 28px;
     }
-    
+
     .stats-icon {
       position: absolute;
       left: 0;
@@ -80,7 +79,7 @@
       align-items: center;
       justify-content: center;
     }
-    
+
     .stats-value {
       font-weight: 600;
       margin-left: auto;
@@ -91,34 +90,34 @@
       text-align: center;
       transition: all 0.3s ease;
     }
-    
+
     .stats-value.highlight {
       animation: pulse 0.5s ease;
     }
-    
+
     @keyframes pulse {
       0%, 100% { transform: scale(1); background: rgba(255, 255, 255, 0.15); }
       50% { transform: scale(1.1); background: var(--accent-color); }
     }
-    
+
     .controls {
       display: flex;
       flex-direction: column;
       gap: 15px;
     }
-    
+
     .control-group {
       display: flex;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
     }
-    
+
     .control-group label {
       font-size: 14px;
       opacity: 0.9;
     }
-    
+
     button {
       background: var(--primary-color);
       color: white;
@@ -134,18 +133,18 @@
       position: relative;
       overflow: hidden;
     }
-    
+
     button:hover {
       background: var(--primary-dark);
       transform: translateY(-2px);
       box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
     }
-    
+
     button:active {
       transform: translateY(0);
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
-    
+
     button::after {
       content: '';
       position: absolute;
@@ -157,27 +156,20 @@
       opacity: 0;
       transition: opacity 0.3s;
     }
-    
+
     button:hover::after {
       opacity: 1;
     }
-    
-    button.night-mode {
-      background: #303F9F;
-    }
-    
-    button.night-mode:hover {
-      background: #1A237E;
-    }
-    
-    button.day-mode {
-      background: #FF9800;
-    }
-    
-    button.day-mode:hover {
-      background: #F57C00;
-    }
-    
+
+    button.night-mode { background: #303F9F; }
+    button.night-mode:hover { background: #1A237E; }
+    button.day-mode { background: #FF9800; }
+    button.day-mode:hover { background: #F57C00; }
+    /* Style for the debug button */
+    button.debug-button { background: #607D8B; }
+    button.debug-button:hover { background: #455A64; }
+
+
     input[type="number"] {
       width: 60px;
       padding: 8px 12px;
@@ -190,21 +182,21 @@
       transition: all 0.3s ease;
       text-align: center;
     }
-    
+
     input[type="number"]:focus {
       outline: none;
       border-color: var(--primary-color);
       box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.3);
     }
-    
-    input[type="number"]::-webkit-inner-spin-button, 
-    input[type="number"]::-webkit-outer-spin-button { 
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
       opacity: 1;
       background: rgba(255, 255, 255, 0.1);
       border-radius: 4px;
       height: 14px;
     }
-    
+
     .game-title {
       position: absolute;
       top: 20px;
@@ -221,12 +213,12 @@
       text-transform: uppercase;
       animation: titleGlow 3s ease-in-out infinite alternate;
     }
-    
+
     @keyframes titleGlow {
       0% { text-shadow: 0 0 10px rgba(76, 175, 80, 0.7), 0 0 20px rgba(76, 175, 80, 0.5); }
       100% { text-shadow: 0 0 15px rgba(33, 150, 243, 0.7), 0 0 30px rgba(33, 150, 243, 0.5); }
     }
-    
+
     .instructions {
       position: absolute;
       bottom: 20px;
@@ -240,15 +232,12 @@
       transition: transform 0.3s ease, opacity 0.3s ease;
       line-height: 1.5;
     }
-    
-    .instructions:hover {
-      transform: translateY(-5px);
-    }
 
-    /* Game status message */
+    .instructions:hover { transform: translateY(-5px); }
+
     .game-status {
       position: absolute;
-      top: 80px;
+      top: 80px; /* Position below title */
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0, 0, 0, 0.6);
@@ -259,231 +248,78 @@
       opacity: 0;
       transition: opacity 0.5s ease;
       z-index: 100;
+      pointer-events: none; /* Prevent interaction */
     }
 
-    .game-status.visible {
-      opacity: 1;
-    }
+    .game-status.visible { opacity: 1; }
 
-    /* View mode banner styling */
     #viewModeBanner {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
+      bottom: 0; left: 0; width: 100%;
       padding: 12px 0;
       background: linear-gradient(90deg, rgba(33, 150, 243, 0.9), rgba(33, 33, 33, 0.9));
-      color: white;
-      text-align: center;
-      z-index: 200;
-      transform: translateY(0);
-      transition: transform 0.4s ease;
+      color: white; text-align: center; z-index: 200;
+      transform: translateY(0); transition: transform 0.4s ease;
       border-top: 1px solid rgba(255, 255, 255, 0.1);
       box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.3);
     }
+    #viewModeBanner.hidden { transform: translateY(100%); }
+    #viewModeBanner span { font-size: 16px; font-weight: 600; margin-right: 15px; letter-spacing: 1px; }
+    #viewModeBanner button { background: rgba(255, 255, 255, 0.2); border-radius: 30px; padding: 8px 20px; font-size: 14px; font-weight: 500; border: 1px solid rgba(255, 255, 255, 0.3); transition: all 0.3s ease; }
+    #viewModeBanner button:hover { background: rgba(255, 255, 255, 0.3); transform: scale(1.05); }
 
-    #viewModeBanner.hidden {
-      transform: translateY(100%);
-    }
-
-    #viewModeBanner span {
-      font-size: 16px;
-      font-weight: 600;
-      margin-right: 15px;
-      letter-spacing: 1px;
-    }
-
-    #viewModeBanner button {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 30px;
-      padding: 8px 20px;
-      font-size: 14px;
-      font-weight: 500;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      transition: all 0.3s ease;
-    }
-
-    #viewModeBanner button:hover {
-      background: rgba(255, 255, 255, 0.3);
-      transform: scale(1.05);
-    }
-    
-    /* Responsive adjustments */
     @media (max-width: 768px) {
-      .game-ui {
-        top: 15px;
-        left: 15px;
-        gap: 15px;
-      }
-      
-      .ui-panel {
-        padding: 15px;
-      }
-      
-      .game-title {
-        font-size: 24px;
-      }
-      
-      .stats {
-        font-size: 16px;
-      }
+      .game-ui { top: 15px; left: 15px; gap: 15px; }
+      .ui-panel { padding: 15px; }
+      .game-title { font-size: 24px; }
+      .stats { font-size: 16px; }
     }
 
-    /* Animation for new elements appearing */
-    .fade-in {
-      animation: fadeIn 0.5s ease forwards;
-    }
+    .fade-in { animation: fadeIn 0.5s ease forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Pause menu styling */
     .pause-menu {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(8px);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
     }
-
-    .pause-menu.active {
-      opacity: 1;
-      pointer-events: all;
-    }
-
+    .pause-menu.active { opacity: 1; pointer-events: all; }
     .pause-content {
-      background: rgba(30, 30, 30, 0.9);
-      border-radius: 20px;
-      padding: 40px;
-      text-align: center;
-      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      max-width: 400px;
-      width: 100%;
-      transform: scale(0.9);
-      transition: transform 0.3s ease;
+      background: rgba(30, 30, 30, 0.9); border-radius: 20px; padding: 40px;
+      text-align: center; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1); max-width: 400px; width: 100%;
+      transform: scale(0.9); transition: transform 0.3s ease;
     }
+    .pause-menu.active .pause-content { transform: scale(1); }
+    .pause-menu h2 { margin-top: 0; font-size: 32px; margin-bottom: 20px; color: white; }
+    .pause-buttons { display: flex; flex-direction: column; gap: 15px; }
+    .pause-button { padding: 12px; width: 100%; font-size: 16px; }
 
-    .pause-menu.active .pause-content {
-      transform: scale(1);
-    }
-
-    .pause-menu h2 {
-      margin-top: 0;
-      font-size: 32px;
-      margin-bottom: 20px;
-      color: white;
-    }
-
-    .pause-buttons {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-
-    .pause-button {
-      padding: 12px;
-      width: 100%;
-      font-size: 16px;
-    }
-
-    .hearts-container {
-      display: flex;
-      gap: 6px;
-      min-width: auto !important;
-      background: transparent !important;
-      padding: 0 !important;
-    }
-    
-    .heart {
-      color: #ff4d4d;
-      font-size: 18px;
-      transition: all 0.3s;
-    }
-    
-    .heart.lost {
-      color: rgba(255, 255, 255, 0.2);
-      transform: scale(0.85);
-    }
-    
-    @keyframes heartLost {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.3); color: white; }
-      100% { transform: scale(0.85); color: rgba(255, 255, 255, 0.2); }
-    }
-    
-    .heart.animate-lost {
-      animation: heartLost 0.5s forwards;
-    }
-
-    /* Hearts container in top right corner */
     .hearts-display {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      padding: 10px 16px;
+      position: absolute; top: 20px; right: 20px; z-index: 100;
+      display: flex; align-items: center; padding: 10px 16px;
       border-radius: var(--panel-radius);
     }
-    
-    .hearts-container {
-      display: flex;
-      gap: 8px;
-      min-width: auto !important;
-      background: transparent !important;
-      padding: 0 !important;
-    }
-    
-    .heart {
-      color: #ff4d4d;
-      font-size: 24px;
-      transition: all 0.3s;
-      filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
-    }
-    
-    .heart.lost {
-      color: rgba(255, 255, 255, 0.2);
-      transform: scale(0.85);
-    }
-    
-    @keyframes heartLost {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.3); color: white; }
-      100% { transform: scale(0.85); color: rgba(255, 255, 255, 0.2); }
-    }
-    
-    .heart.animate-lost {
-      animation: heartLost 0.5s forwards;
-    }
+    .hearts-container { display: flex; gap: 8px; min-width: auto !important; background: transparent !important; padding: 0 !important; }
+    .heart { color: #ff4d4d; font-size: 24px; transition: all 0.3s; filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5)); }
+    .heart.lost { color: rgba(255, 255, 255, 0.2); transform: scale(0.85); }
+    @keyframes heartLost { 0% { transform: scale(1); } 50% { transform: scale(1.3); color: white; } 100% { transform: scale(0.85); color: rgba(255, 255, 255, 0.2); } }
+    .heart.animate-lost { animation: heartLost 0.5s forwards; }
+
+    /* --- REMOVED #levelDisplay style --- */
+
   </style>
-  
-  <!-- Add icons from Font Awesome -->
+
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  <!-- View mode banner -->
   <div id="viewModeBanner" class="hidden"></div>
-  
-  <!-- Game title -->
+
   <div class="game-title glassmorphism">Dodge It!</div>
-  
-  <!-- Game status message -->
+
   <div id="gameStatus" class="game-status glassmorphism fade-in"></div>
-  
-  <!-- Hearts display in top right corner -->
+
   <div class="hearts-display glassmorphism fade-in">
     <div id="hearts" class="hearts-container">
       <i class="fas fa-heart heart"></i>
@@ -492,40 +328,42 @@
     </div>
   </div>
 
-  <!-- Consolidated UI -->
   <div class="game-ui">
-    <!-- Stats panel -->
     <div class="ui-panel stats glassmorphism fade-in">
       <div class="stats-row">
         <div class="stats-icon"><i class="fas fa-trophy"></i></div>
         <div>Score</div>
         <div id="score" class="stats-value">0</div>
       </div>
-    </div>
-    
-    <!-- Controls panel -->
+       </div>
+
     <div class="ui-panel controls glassmorphism fade-in">
       <div class="control-group">
         <label for="rateInput">Balls per sec:</label>
         <input type="number" id="rateInput" value="1" step="0.5" min="0" max="10" />
         <button id="setRateBtn"><i class="fas fa-check"></i> Set</button>
       </div>
-      
+
       <div class="control-group">
         <button id="dayNightBtn" class="night-mode">
           <i class="fas fa-moon"></i> Night Mode
         </button>
       </div>
-      
+
       <div class="control-group">
         <button id="pauseBtn">
           <i class="fas fa-pause"></i> Pause
         </button>
       </div>
-    </div>
+
+       <div class="control-group">
+        <button id="debugLevelBtn" class="debug-button">
+          <i class="fas fa-arrow-right"></i> Next Level (Debug)
+        </button>
+      </div>
+      </div>
   </div>
-  
-  <!-- Pause Menu -->
+
   <div class="pause-menu" id="pauseMenu">
     <div class="pause-content">
       <h2>Game Paused</h2>
@@ -536,128 +374,132 @@
       </div>
     </div>
   </div>
-    
-  <!-- Scripts -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.js"></script>
-  
-  <script type="importmap">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.js"></script> <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.skypack.dev/three@0.128.0",
-      "three/addons/": "https://cdn.skypack.dev/three@0.128.0/examples/jsm/"
+      "three": "https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/"
     }
   }
   </script>
-  
-  <!-- Main game code -->
+
   <script type="module" src="./main.js"></script>
 
   <script>
-    // UI Enhancement Script
     document.addEventListener('DOMContentLoaded', function() {
-      // Parse URL parameters
       const urlParams = new URLSearchParams(window.location.search);
       const viewMode = urlParams.get('viewMode') === 'true';
-      
-      // Setup view mode banner if needed
+
       if (viewMode) {
         const banner = document.getElementById('viewModeBanner');
-        banner.classList.remove('hidden');
-        banner.innerHTML = '<span><i class="fas fa-eye"></i> VIEW MODE ACTIVE</span> <button id="exitViewMode"><i class="fas fa-sign-out-alt"></i> Exit View Mode</button>';
-        
-        // Hide stats in view mode
+        if(banner) { // Check if banner exists
+            banner.classList.remove('hidden');
+            banner.innerHTML = '<span><i class="fas fa-eye"></i> VIEW MODE ACTIVE</span> <button id="exitViewMode"><i class="fas fa-sign-out-alt"></i> Exit View Mode</button>';
+            const exitBtn = document.getElementById('exitViewMode');
+            if(exitBtn) exitBtn.addEventListener('click', () => window.location.href = 'index.html');
+        }
         const statsPanel = document.querySelector('.stats');
         if (statsPanel) statsPanel.style.display = 'none';
-        
-        // Exit button event listener
-        document.getElementById('exitViewMode').addEventListener('click', () => {
-          window.location.href = 'index.html';
-        });
-        
-        // Show status message
       }
-      
+
       // Animation for stats when they change
       const scoreElement = document.getElementById('score');
-      const hitCountElement = document.getElementById('hitCount');
-      
-      // Track previous values to detect changes
+      // *** REMOVED hitCountElement reference ***
+
       let prevScore = 0;
-      let prevHits = 0;
-      
+      // *** REMOVED prevHits variable ***
+
       // Check for stats changes periodically
       setInterval(() => {
-        const currentScore = parseInt(scoreElement.textContent);
-        const currentHits = parseInt(hitCountElement.textContent);
-        
-        if (currentScore > prevScore) {
-          scoreElement.classList.add('highlight');
-          setTimeout(() => scoreElement.classList.remove('highlight'), 500);
-          prevScore = currentScore;
+        if (scoreElement) { // Check if scoreElement exists
+            const currentScoreText = scoreElement.textContent;
+            // Check if textContent is a valid number before parsing
+            if (!isNaN(currentScoreText) && currentScoreText.trim() !== '') {
+                const currentScore = parseInt(currentScoreText);
+                if (currentScore > prevScore) {
+                    scoreElement.classList.add('highlight');
+                    setTimeout(() => scoreElement.classList.remove('highlight'), 500);
+                    prevScore = currentScore;
+                }
+            }
         }
-        
-        if (currentHits > prevHits) {
-          hitCountElement.classList.add('highlight');
-          setTimeout(() => hitCountElement.classList.remove('highlight'), 500);
-          prevHits = currentHits;
-        }
-      }, 100);
-      
-      // Toggle day/night button icon and text
+
+        // *** REMOVED hitCountElement check ***
+
+      }, 100); // Check every 100ms
+
+      // Toggle day/night button icon and text (This might be duplicated by main.js logic, consider removing one)
       const dayNightBtn = document.getElementById('dayNightBtn');
-      dayNightBtn.addEventListener('click', function() {
-        if (this.classList.contains('night-mode')) {
-          this.classList.remove('night-mode');
-          this.classList.add('day-mode');
-          this.innerHTML = '<i class="fas fa-sun"></i> Day Mode';
-        } else {
-          this.classList.remove('day-mode');
-          this.classList.add('night-mode');
-          this.innerHTML = '<i class="fas fa-moon"></i> Night Mode';
-        }
-      });
-      
-      // Pause menu functionality
+      if (dayNightBtn) { // Check if button exists
+          dayNightBtn.addEventListener('click', function() {
+            // This logic might conflict with main.js updating the button.
+            // It's safer to let main.js handle the button update after calling window.toggleDayNight()
+            /*
+            if (this.classList.contains('night-mode')) {
+              this.classList.remove('night-mode');
+              this.classList.add('day-mode');
+              this.innerHTML = '<i class="fas fa-sun"></i> Day Mode';
+            } else {
+              this.classList.remove('day-mode');
+              this.classList.add('night-mode');
+              this.innerHTML = '<i class="fas fa-moon"></i> Night Mode';
+            }
+            */
+          });
+      }
+
+      // Pause menu functionality (This might be duplicated by main.js logic)
       const pauseBtn = document.getElementById('pauseBtn');
       const pauseMenu = document.getElementById('pauseMenu');
       const resumeBtn = document.getElementById('resumeBtn');
       const restartBtn = document.getElementById('restartBtn');
       const exitBtn = document.getElementById('exitBtn');
-      
-      pauseBtn.addEventListener('click', () => {
-        pauseMenu.classList.add('active');
-        // You would also need to call a pause function in your game code
+
+      // It's generally better to handle game state (like pause) in main.js
+      // These listeners might interfere if main.js also adds listeners to the same buttons.
+      /*
+      if(pauseBtn) pauseBtn.addEventListener('click', () => {
+        if(pauseMenu) pauseMenu.classList.add('active');
+        // Call pause function from main.js if exposed: window.pauseGame();
       });
-      
-      resumeBtn.addEventListener('click', () => {
-        pauseMenu.classList.remove('active');
-        // You would also need to call a resume function in your game code
+
+      if(resumeBtn) resumeBtn.addEventListener('click', () => {
+        if(pauseMenu) pauseMenu.classList.remove('active');
+        // Call resume function from main.js if exposed: window.resumeGame();
       });
-      
-      restartBtn.addEventListener('click', () => {
+      */
+
+      if(restartBtn) restartBtn.addEventListener('click', () => {
         location.reload();
       });
-      
-      exitBtn.addEventListener('click', () => {
+
+      if(exitBtn) exitBtn.addEventListener('click', () => {
         window.location.href = 'index.html';
       });
-      
-      // Function to show temporary status messages
+
+      // Function to show temporary status messages (Keep this, main.js uses it)
       function showStatusMessage(message, duration = 3000) {
         const statusElement = document.getElementById('gameStatus');
-        statusElement.textContent = message;
-        statusElement.classList.add('visible');
-        
-        setTimeout(() => {
-          statusElement.classList.remove('visible');
-        }, duration);
+        if (statusElement) { // Check if element exists
+            statusElement.textContent = message;
+            statusElement.classList.add('visible');
+            // Clear previous timeout if exists
+             if (statusElement.timeoutId) {
+                clearTimeout(statusElement.timeoutId);
+            }
+            statusElement.timeoutId = setTimeout(() => {
+              statusElement.classList.remove('visible');
+              statusElement.timeoutId = null;
+            }, duration);
+        } else {
+            console.warn("gameStatus element not found in showStatusMessage (HTML script)");
+        }
       }
-      
-      // Expose function for other scripts
+
+      // Expose function for other scripts (main.js uses this)
       window.showGameStatus = showStatusMessage;
     });
   </script>
 </body>
 </html>
-

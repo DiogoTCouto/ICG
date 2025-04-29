@@ -1,41 +1,50 @@
-// main.js
-import * as THREE from 'three'; // Import THREE namespace
-// Import necessary items from scene.js, including new flags/variables if added
+// main.js - Updated for Level System & Fixed const assignment error
+import * as THREE from 'three';
 import { scene, camera, renderer, cameraRotation, cameraTilt, isDragging } from './scene.js';
 import { world } from './physics.js';
-// Import from terrain.js (assuming this is the correct one based on init call)
-import { initSpacedBlockyTerrain, updateWater, findNearestColumn } from './terrain.js';
-// Import player functions and getters
+// Import terrain functions for BOTH levels
+// Make sure the paths and exported names match your actual files
+import { initSpacedBlockyTerrain, terrainColumns as terrainColumnsLvl1Ref, goalPillarData as goalPillarLvl1Ref } from './terrain.js'; // Renamed imports slightly for clarity
+import { initSpacedBlockyTerrainLevel2 } from './terrain_level2.js'; // Import Level 2 init
+// Import player functions
 import {
   initPlayer,
   setupPlayerControls,
   updatePlayer,
+  resetPlayerState, // Import reset function
   getPlayerBody,
   getCameraMode,
   getPlayerMesh,
   getPlayerHeightOffset
 } from './player.js';
-// Import ball functions and processRemovals
+// Import item/enemy functions
 import { spawnBallMachine, updateBalls, processRemovals as processBallRemovals } from './ball.js';
-// Import cupcake functions and processRemovals
 import { handleClick, startCupcakeSpawner, updateCupcakes, processRemovals as processCupcakeRemovals } from './cupcake.js';
 
-// Get initial settings from URL
+// --- Game State Variables ---
 const urlParams = new URLSearchParams(window.location.search);
 const initialModel = urlParams.get('model') || 'cube';
-const viewMode = urlParams.get('viewMode') === 'true'; // Check if viewMode is active
+const viewMode = urlParams.get('viewMode') === 'true';
 
-// Game state variables
 let score = 0;
 let lives = 3;
 let hitCount = 0;
-let currentRate = 1;
-let orbitAngle = 0; // For view mode camera
-let gameWon = false; // *** ADDED: Game won flag ***
-const orbitRadius = 50; // For view mode camera
-const terrainCenterY = 20; // For view mode camera target
+let currentRate = 1; // Ball spawn rate
+let gameWon = false; // Final win state
+let isPaused = false;
+let animationFrameId = null;
+const clock = new THREE.Clock();
 
-// Third-person camera control variables
+// --- Level Management ---
+let currentLevel = 1;
+const maxLevels = 2;
+let terrainColumns = []; // Shared array to hold current level's column data
+let currentGoalPillarData = null; // Reference to the current level's goal data
+
+// --- Camera Variables ---
+let orbitAngle = 0; // For view mode camera
+const orbitRadius = 50;
+const terrainCenterY = 20;
 const defaultCameraTilt = Math.PI / 6;
 const cameraDistance = 25;
 const cameraHeight = 15;
@@ -43,18 +52,17 @@ let smoothedCameraRotation = cameraRotation || 0;
 let smoothedCameraTilt = cameraTilt || defaultCameraTilt;
 let zoomLevel = 1.0;
 
-// Pause state
-let isPaused = false;
-let animationFrameId = null; // To store the requestAnimationFrame ID
-
-// Timing
-const clock = new THREE.Clock(); // Use THREE.Clock for delta time
+// --- UI Elements ---
+const scoreEl = document.getElementById('score');
+const heartsContainer = document.getElementById('hearts');
+const pauseMenu = document.getElementById('pauseMenu');
+const gameStatusEl = document.getElementById('gameStatus');
+// *** FIXED: Changed const to let for levelDisplayEl ***
+let levelDisplayEl = document.getElementById('levelDisplay'); // Allow reassignment if created dynamically
 
 // --- UI Update Functions ---
-// (updateScore remains unchanged)
 function updateScore(newScore) {
   score = newScore;
-  const scoreEl = document.getElementById('score');
   if (scoreEl) {
       scoreEl.textContent = score;
       scoreEl.classList.add('highlight');
@@ -62,28 +70,21 @@ function updateScore(newScore) {
   }
 }
 
-// (updateHitDisplay remains largely unchanged, but checks gameWon flag)
 function updateHitDisplay(newTotalHits) {
-  const heartsContainer = document.getElementById('hearts');
   if (!heartsContainer) return;
-
   const previousLives = lives;
-  lives = Math.max(0, 3 - newTotalHits); // Calculate lives based on total hits
+  lives = Math.max(0, 3 - newTotalHits);
 
-  // Animate hearts if lives decreased
   if (lives < previousLives) {
     const hearts = heartsContainer.querySelectorAll('.heart');
     for (let i = lives; i < previousLives; i++) {
         if (hearts[i] && !hearts[i].classList.contains('lost')) {
             hearts[i].classList.add('animate-lost');
-            setTimeout(() => {
-                 if(hearts[i]) hearts[i].classList.add('lost');
-            }, 500);
+            setTimeout(() => { if(hearts[i]) hearts[i].classList.add('lost'); }, 500);
         }
     }
   }
 
-   // Ensure correct static state for all hearts
    const hearts = heartsContainer.querySelectorAll('.heart');
    for (let i = 0; i < hearts.length; i++) {
        if (i < lives) {
@@ -93,202 +94,332 @@ function updateHitDisplay(newTotalHits) {
        }
    }
 
-  // Check for game over, only if game is not already won or paused
-  if (lives <= 0 && !isPaused && !gameWon) { // *** ADDED: Check gameWon flag ***
-    if (window.showGameStatus) {
-        window.showGameStatus("Game Over! Press ESC to restart.", 10000);
-    } else {
-        alert("Game Over!"); // Fallback
-    }
-    pauseGame(); // Pause on game over
+  // Check for game over
+  if (lives <= 0 && !isPaused && !gameWon) {
+    showStatusMessage("Game Over! Press ESC to restart.", 10000);
+    pauseGame(true); // Pause and indicate game over state
   }
+}
+
+function updateLevelDisplay() {
+    // Check if levelDisplayEl exists before trying to update it
+    if (levelDisplayEl) {
+        levelDisplayEl.textContent = `Level: ${currentLevel}`;
+    } else {
+        console.warn("Level display element not found when trying to update.");
+        // Attempt to find it again in case it was added after initial load but before this call
+        levelDisplayEl = document.getElementById('levelDisplay');
+        if (levelDisplayEl) {
+            levelDisplayEl.textContent = `Level: ${currentLevel}`;
+        }
+    }
+}
+
+
+function showStatusMessage(message, duration = 3000) {
+    if (gameStatusEl) {
+        gameStatusEl.textContent = message;
+        gameStatusEl.classList.add('visible');
+        setTimeout(() => {
+            gameStatusEl.classList.remove('visible');
+        }, duration);
+    } else if (window.showGameStatus) { // Fallback to function defined in HTML
+        window.showGameStatus(message, duration);
+    } else {
+        console.log("STATUS:", message); // Console fallback
+    }
 }
 
 
 // --- Game Pause/Resume ---
-function pauseGame() {
+function pauseGame(isGameOver = false) {
     // Prevent pausing if already won
-    if (isPaused || gameWon) return; // *** ADDED: Check gameWon flag ***
+    if (isPaused || gameWon) return;
     isPaused = true;
-    clock.stop(); // Stop the clock
+    clock.stop();
     if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
         animationFrameId = null;
     }
-    const pauseMenu = document.getElementById('pauseMenu');
     if (pauseMenu) {
-        // Ensure title is correct if paused normally (not win/game over)
         const pauseTitle = pauseMenu.querySelector('h2');
-        if (pauseTitle && lives > 0) pauseTitle.textContent = "Game Paused";
-        // Ensure resume button is visible if paused normally
         const resumeBtn = document.getElementById('resumeBtn');
-        if (resumeBtn && lives > 0) resumeBtn.style.display = 'block';
-
-        pauseMenu.classList.add('active'); // Show pause menu
+        if (pauseTitle) {
+             pauseTitle.textContent = isGameOver ? "Game Over" : (gameWon ? "You Win!" : "Game Paused"); // Handle win state text
+        }
+        if (resumeBtn) {
+            // Hide resume if game over OR game won
+            resumeBtn.style.display = (isGameOver || gameWon) ? 'none' : 'block';
+        }
+        pauseMenu.classList.add('active');
     }
     spawnBallMachine(0); // Stop spawning balls
-    // Stop cupcake spawner if it's interval-based (if not, it stops with the game loop)
-    // clearInterval(cupcakeIntervalId); // Assuming cupcake spawner uses an interval ID
+    // Stop cupcake spawner if interval-based
+    // clearInterval(cupcakeIntervalId);
 
-    document.exitPointerLock(); // Ensure pointer is unlocked when paused
-    console.log("Game Paused");
+    document.exitPointerLock();
+    console.log(isGameOver ? "Game Over - Paused" : (gameWon ? "Game Won - Paused" : "Game Paused"));
 }
 
 function resumeGame() {
     // Only resume if paused, not game over, and not won
-    if (!isPaused || lives <= 0 || gameWon) return; // *** ADDED: Check gameWon flag ***
+    if (!isPaused || lives <= 0 || gameWon) return;
     isPaused = false;
-    clock.start(); // Restart the clock
-    const pauseMenu = document.getElementById('pauseMenu');
-    if (pauseMenu) pauseMenu.classList.remove('active'); // Hide pause menu
-    spawnBallMachine(currentRate); // Resume spawning balls at current rate
+    clock.start();
+    if (pauseMenu) pauseMenu.classList.remove('active');
+    spawnBallMachine(currentRate);
     // Restart cupcake spawner if needed
-    // startCupcakeSpawner(3000); // Assuming this restarts the interval
+    // startCupcakeSpawner(3000);
 
-    // If in FPS mode, request pointer lock again on resume
     if(getCameraMode() === 'firstPerson') {
         renderer.domElement.requestPointerLock();
     }
     if (!animationFrameId) {
-        animate(); // Re-request frame to continue loop
+        animate();
     }
     console.log("Game Resumed");
 }
 
-// *** ADDED: Global win condition trigger function ***
-window.triggerWinCondition = function() {
-    // Only trigger if not already won and not paused (to avoid race conditions)
-    if (gameWon || isPaused) return;
+// --- Level Loading and Clearing ---
 
-    console.log("Win Condition Triggered!");
-    gameWon = true; // Set the flag
+/**
+ * Removes all objects associated with the current level from the scene and physics world.
+ */
+function clearLevel() {
+    console.log("Clearing current level...");
 
-    // Show win message via existing UI function
-    if (window.showGameStatus) {
-        window.showGameStatus("You Win! Press ESC to restart.", 15000); // Show for 15 seconds
-    } else {
-        alert("You Win!"); // Fallback
+    // Remove physics bodies (terrain, floor)
+    // Use flags added in terrain_level2.js
+    const bodiesToRemove = world.bodies.filter(body => body.isTerrainPillar || body.isSafetyFloor);
+    bodiesToRemove.forEach(body => world.removeBody(body));
+    console.log(`Removed ${bodiesToRemove.length} physics bodies.`);
+
+    // Remove meshes (terrain, floor, water, goal marker, lampposts)
+    // Use flags/names added in terrain_level2.js
+    const meshesToRemove = scene.children.filter(child =>
+        child.isTerrainPillar || child.isSafetyFloor || child.isWater || child.name === "GoalMarker" || child.name === "Lamppost" || child.isLevelObject
+    );
+     meshesToRemove.forEach(mesh => {
+        // Dispose geometry and material
+        if (mesh.geometry) mesh.geometry.dispose();
+        if (mesh.material) {
+            if (Array.isArray(mesh.material)) {
+                mesh.material.forEach(m => {
+                    if(m.map) m.map.dispose(); // Dispose textures
+                    m.dispose();
+                });
+            } else {
+                 if(mesh.material.map) mesh.material.map.dispose(); // Dispose texture
+                 mesh.material.dispose();
+            }
+        }
+        // Dispose lights within lampposts
+        if (mesh.name === "Lamppost") {
+            mesh.traverse(child => {
+                if (child.isLight) {
+                    child.dispose(); // Dispose THREE.js lights
+                }
+            });
+        }
+        scene.remove(mesh); // Remove from scene after disposal
+    });
+    console.log(`Removed ${meshesToRemove.length} scene objects.`);
+
+
+    // Clear the shared terrain data array and goal data reference
+    terrainColumns.length = 0;
+    currentGoalPillarData = null;
+
+    // Note: Player, balls, cupcakes are handled separately
+    // Consider clearing active balls/cupcakes here if they shouldn't carry over.
+    // Example:
+    // clearActiveItems(); // You would need to implement this in ball.js/cupcake.js
+}
+
+/**
+ * Loads the specified level.
+ * @param {number} levelNumber - The level to load (1 or 2).
+ */
+function loadLevel(levelNumber) {
+    clearLevel(); // Clear previous level first
+
+    console.log(`Loading Level ${levelNumber}...`);
+    currentLevel = levelNumber;
+    updateLevelDisplay(); // Update UI
+
+    // Reset player state (allow winning again)
+    resetPlayerState(); // From player.js
+    const playerBody = getPlayerBody();
+
+    // Initialize terrain based on level number
+    if (levelNumber === 1) {
+        // Use parameters for Level 1
+        // Pass the shared terrainColumns array to be populated
+        initSpacedBlockyTerrain(0.2, 0.2, 15, 20, 2);
+        // Goal data is now handled internally by terrain/wincondition modules
+
+        // Ensure day mode
+        if (window.isNightModeActive === true && typeof window.toggleDayNight === 'function') {
+            console.log("Switching to Day Mode for Level 1");
+            window.toggleDayNight();
+        }
+        showStatusMessage("Level 1", 4000);
+
+    } else if (levelNumber === 2) {
+        // Use parameters for Level 2
+        // Pass the shared terrainColumns array to be populated
+        initSpacedBlockyTerrainLevel2(terrainColumns, 18, 18, 4, 25, 2.0, 0.15);
+        // Goal data is now handled internally by terrain/wincondition modules
+
+        // Ensure night mode
+        if (window.isNightModeActive === false && typeof window.toggleDayNight === 'function') {
+             console.log("Switching to Night Mode for Level 2");
+             window.toggleDayNight();
+        }
+         showStatusMessage("Level 2", 4000);
     }
 
-    // Pause the game (stops loop, spawners)
-    pauseGame(); // Call existing pause function
+     // Reposition player AFTER terrain is generated and terrainColumns is populated
+     if (playerBody) {
+        // Find starting column for the level (e.g., near 0,0) using the now populated terrainColumns
+       const startColumn = findNearestColumn(0, 0) || { height: 10, x: 0, z: 0 }; // Fallback
+       const startY = startColumn.height + getPlayerHeightOffset() + 1.0; // Start slightly above
+       playerBody.position.set(startColumn.x, startY, startColumn.z);
+       playerBody.velocity.set(0, 0, 0);
+       playerBody.angularVelocity.set(0, 0, 0);
+       // Force awake state after repositioning
+       playerBody.wakeUp();
+       console.log(`Player repositioned for Level ${levelNumber} at`, playerBody.position);
+   } else {
+       console.error("Player body not available for repositioning!");
+   }
 
-    // Optionally adjust pause menu for win state AFTER calling pauseGame
-    const pauseMenu = document.getElementById('pauseMenu');
-    if (pauseMenu) {
-        const pauseTitle = pauseMenu.querySelector('h2');
-        const resumeBtn = document.getElementById('resumeBtn');
-        if (pauseTitle) pauseTitle.textContent = "You Win!"; // Change title
-        if (resumeBtn) resumeBtn.style.display = 'none'; // Hide resume button
-        // Ensure menu is visible if pauseGame didn't show it due to gameWon check
-        pauseMenu.classList.add('active');
+
+    // Reset game state variables relevant to the level start
+    isPaused = false; // Ensure game isn't paused
+    gameWon = false; // Ensure final win flag is false
+    if (clock.running === false) clock.start(); // Start clock if stopped
+    if (!animationFrameId) animate(); // Start animation loop if stopped
+
+}
+
+// --- Win Condition / Level Progression ---
+
+/**
+ * Called by player.js when goal is reached. Handles level advance or final win.
+ */
+window.advanceLevelOrWin = function() {
+    // Add a small delay to prevent immediate re-trigger if player stays on goal
+    if (!getPlayerBody()?.canWin) return; // Check player's internal flag if it exists
+
+    if (currentLevel < maxLevels) {
+        // Advance to the next level
+        const nextLevel = currentLevel + 1;
+        console.log(`Level ${currentLevel} Complete! Advancing to Level ${nextLevel}`);
+        showStatusMessage(`Level ${currentLevel} Complete!`, 3000);
+        // Load the next level after a short delay
+        setTimeout(() => {
+            loadLevel(nextLevel);
+        }, 1500); // 1.5 second delay before loading next level
+    } else {
+        // Completed the last level - trigger final win
+        console.log(`Level ${currentLevel} Complete! Game Won!`);
+        triggerFinalWin();
     }
 };
-// *** END ADDED ***
+
+/**
+ * Handles the final win state after completing the last level.
+ */
+function triggerFinalWin() {
+    if (gameWon) return; // Prevent multiple triggers
+    gameWon = true;
+    console.log("Final Win Condition Triggered!");
+
+    showStatusMessage("You Win! Congratulations!", 15000);
+
+    // Pause the game and show a modified pause menu
+    pauseGame(true); // Use game over state styling for the pause menu (hides resume)
+
+    if (pauseMenu) {
+        const pauseTitle = pauseMenu.querySelector('h2');
+        if (pauseTitle) pauseTitle.textContent = "You Win!"; // Override "Game Over"
+        pauseMenu.classList.add('active'); // Ensure menu is visible
+    }
+}
 
 
 // --- Main Animate Loop ---
 function animate() {
-    // Store the ID returned by requestAnimationFrame to allow cancellation
     animationFrameId = requestAnimationFrame(animate);
 
-    // Check pause state or win state at the beginning of the frame
-    if (isPaused || gameWon) { // *** ADDED: Check gameWon flag ***
-        // If paused or won, render one more frame for overlay/message,
-        // but don't run game logic or request the next frame.
-        renderer.render(scene, camera);
-        // If using composer:
+    // Check pause or final win state
+    if (isPaused || gameWon) {
+        renderer.render(scene, camera); // Render UI overlay
         // if (renderComposer) renderComposer.render();
         return; // Skip game logic
     }
 
-    // --- Only run game logic if not paused and not won ---
-    const deltaTime = clock.getDelta(); // Get time since last frame
+    const deltaTime = clock.getDelta();
 
-    // --- Physics Update ---
-    world.step(1 / 60, deltaTime, 3); // Recommended fixed step
+    // Physics Update
+    world.step(1 / 60, deltaTime, 3);
 
-    // --- Process Removals (After Physics Step) ---
+    // Process Removals
     processBallRemovals();
-    processCupcakeRemovals(); // Assuming this exists and is needed
+    processCupcakeRemovals();
 
-    // --- Update Game Objects ---
-    updatePlayer(deltaTime); // Pass deltaTime
+    // Update Game Objects
+    updatePlayer(deltaTime);
     updateBalls();
     updateCupcakes();
-    updateWater(deltaTime); // Update water animation
+    // updateWater(deltaTime); // Water animation might be handled internally now
 
-    // --- Camera Update Logic --- (Original logic restored)
+    // Camera Update Logic (remains the same as previous version)
     const playerBody = getPlayerBody();
     const currentCameraMode = getCameraMode();
-
     if (viewMode) {
-        // View mode camera logic
-        orbitAngle += 0.0001 * 60; // Adjust speed if needed
+        orbitAngle += 0.0001 * 60;
         camera.position.x = orbitRadius * Math.cos(orbitAngle);
         camera.position.z = orbitRadius * Math.sin(orbitAngle);
-        camera.position.y = terrainCenterY + 25; // Adjust height if needed
-        camera.lookAt(0, terrainCenterY, 0); // Look at the center of the terrain area
-
-    } else if (playerBody) { // Gameplay camera logic
+        camera.position.y = terrainCenterY + 25;
+        camera.lookAt(0, terrainCenterY, 0);
+    } else if (playerBody) {
         if (currentCameraMode === 'firstPerson') {
-            // First person camera logic
             const headPosition = new THREE.Vector3();
             headPosition.copy(playerBody.position);
-            headPosition.y += getPlayerHeightOffset(); // Add player's eye height
-            const positionSmoothingFactor = 0.2; // Adjust for smoother/faster follow
+            headPosition.y += getPlayerHeightOffset();
+            const positionSmoothingFactor = 0.2;
             camera.position.lerp(headPosition, positionSmoothingFactor);
-            // Camera rotation is handled directly in player.js based on mouse input
-
         } else { // 'thirdPerson'
-            // Third person camera logic
-            const cameraPositionLerpFactor = 0.15; // How quickly camera moves to target
-            const cameraRotationSmoothFactor = 0.1; // How quickly rotation adjusts
-
-            // Smoothly update camera rotation/tilt based on mouse drag (if dragging)
-            // isDragging, cameraRotation, cameraTilt are imported/managed by scene.js
+            const cameraPositionLerpFactor = 0.15;
+            const cameraRotationSmoothFactor = 0.1;
             if (isDragging) {
                  smoothedCameraRotation += (cameraRotation - smoothedCameraRotation) * cameraRotationSmoothFactor;
                  smoothedCameraTilt += (cameraTilt - smoothedCameraTilt) * cameraRotationSmoothFactor;
-                 // Clamp tilt to prevent looking too far up/down
                  smoothedCameraTilt = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, smoothedCameraTilt));
             }
-
-            // Calculate camera offset based on rotation, tilt, and zoom
             const horizontalDistance = cameraDistance * zoomLevel;
             const baseVerticalOffset = cameraHeight * zoomLevel;
-
             const offset = new THREE.Vector3();
-            // Calculate offset in spherical coordinates, then convert to Cartesian
             offset.x = horizontalDistance * Math.sin(smoothedCameraRotation);
             offset.z = horizontalDistance * Math.cos(smoothedCameraRotation);
-            // Calculate vertical offset based on tilt and base height
             offset.y = horizontalDistance * Math.tan(smoothedCameraTilt) + baseVerticalOffset;
-
-            // Target camera position is player position + calculated offset
             const targetCamPos = new THREE.Vector3();
             targetCamPos.copy(playerBody.position).add(offset);
-
-            // Smoothly move camera towards the target position
             camera.position.lerp(targetCamPos, cameraPositionLerpFactor);
-
-            // Make the camera look slightly above the player's feet
             const lookAtTarget = new THREE.Vector3(
-                playerBody.position.x,
-                playerBody.position.y + 1.0, // Look slightly higher than feet
-                playerBody.position.z
+                playerBody.position.x, playerBody.position.y + 1.0, playerBody.position.z
             );
             camera.lookAt(lookAtTarget);
         }
     } else {
-        // Fallback if playerBody doesn't exist yet
         camera.lookAt(0, 0, 0);
     }
-    // --- End Camera Update ---
 
-    // --- Render ---
+    // Render
     renderer.render(scene, camera);
-    // if (renderComposer) renderComposer.render(); // If using post-processing
+    // if (renderComposer) renderComposer.render();
 }
 
 // --- Initialization ---
@@ -297,39 +428,37 @@ function initGame() {
     console.log("View Mode:", viewMode);
     console.log("Initial Player Model:", initialModel);
 
-    // Reset game state flags
+    // Reset core game state
     isPaused = false;
-    gameWon = false; // *** ADDED: Reset gameWon flag on init ***
-    lives = 3; // Reset lives
-    hitCount = 0; // Reset hits
-    updateHitDisplay(0); // Update UI for lives
-    score = 0; // Reset score
-    updateScore(0); // Update UI for score
+    gameWon = false;
+    lives = 3;
+    hitCount = 0;
+    updateHitDisplay(0);
+    score = 0;
+    updateScore(0);
+    currentLevel = 1; // Start at level 1
 
-    // Initialize terrain using the function from terrain.js
-    // Using parameters that likely match the scattered terrain setup
-    initSpacedBlockyTerrain(0.2, 0.2, 15, 18, 2); // Alternative with spacing
-
-    // Initialize player using the model from URL param or default
+    // Initialize player (position will be set by loadLevel)
     initPlayer(initialModel);
 
-    // Setup controls and game elements only if not in view mode
+    // Setup controls (only if not in view mode)
     if (!viewMode) {
-        setupPlayerControls(); // Sets up WASD, Space, F key, mouse look, etc.
-        spawnBallMachine(currentRate); // Start spawning balls
-        startCupcakeSpawner(3000); // Start spawning cupcakes every 3 seconds
-        renderer.domElement.addEventListener('click', handleClick); // Enable cupcake clicking
+        setupPlayerControls();
+        spawnBallMachine(currentRate); // Start spawners
+        startCupcakeSpawner(3000);
+        renderer.domElement.addEventListener('click', handleClick);
     } else {
-        // Configure view mode specifics (e.g., hide UI)
-        const uiElementsToHide = ['.game-ui', '.hearts-display', '.instructions']; // Add class selectors for UI elements
+        // Configure view mode specifics
+        const uiElementsToHide = ['.game-ui', '.hearts-display', '#levelDisplay']; // Hide level display too
         uiElementsToHide.forEach(selector => {
              const element = document.querySelector(selector);
              if (element) element.style.display = 'none';
         });
-        // Optionally disable controls or spawners if they were started before this check
-        spawnBallMachine(0); // Ensure balls don't spawn in view mode
-        // Stop cupcake spawner if needed
+        spawnBallMachine(0); // Ensure no spawns
     }
+
+    // Load the first level
+    loadLevel(1); // This now handles terrain init and player positioning
 
     // Setup UI Controls (Rate, Day/Night, Pause)
     const rateInput = document.getElementById('rateInput');
@@ -343,12 +472,10 @@ function initGame() {
     if (setRateBtn && rateInput) {
         rateInput.value = currentRate;
         setRateBtn.addEventListener('click', () => {
-            // Prevent changing rate if game is won
-            if (gameWon) return; // *** ADDED: Check gameWon flag ***
+            if (gameWon) return; // Prevent changes after win
             const newRate = parseFloat(rateInput.value);
             if (!isNaN(newRate) && newRate >= 0) {
                 currentRate = newRate;
-                // Only change spawner if not paused and not in view mode
                 if (!isPaused && !viewMode) {
                     spawnBallMachine(currentRate);
                 }
@@ -357,60 +484,115 @@ function initGame() {
         });
     }
 
-    if (dayNightBtn) { // Day/Night toggle
+    if (dayNightBtn) {
         dayNightBtn.addEventListener('click', () => {
-            // Use the globally exposed function from scene.js
             if (typeof window.toggleDayNight === 'function') {
                  window.toggleDayNight();
+                 // Update button text/class based on new state
+                 const isNight = window.isNightModeActive; // Assuming scene.js exposes this
+                 dayNightBtn.innerHTML = isNight ? '<i class="fas fa-sun"></i> Day Mode' : '<i class="fas fa-moon"></i> Night Mode';
+                 // Ensure only one class is active
+                 dayNightBtn.classList.remove('day-mode', 'night-mode');
+                 dayNightBtn.classList.add(isNight ? 'day-mode' : 'night-mode');
             } else {
                  console.warn("toggleDayNight function not found on window.");
             }
         });
+        // Initial button state based on scene.js (if possible)
+        const isNight = window.isNightModeActive;
+        dayNightBtn.innerHTML = isNight ? '<i class="fas fa-sun"></i> Day Mode' : '<i class="fas fa-moon"></i> Night Mode';
+        // Ensure only one class is active
+        dayNightBtn.classList.remove('day-mode', 'night-mode');
+        dayNightBtn.classList.add(isNight ? 'day-mode' : 'night-mode');
     }
 
     // Pause menu button listeners
-    if (pauseBtn) pauseBtn.addEventListener('click', pauseGame);
+    if (pauseBtn) pauseBtn.addEventListener('click', () => pauseGame(false)); // Normal pause
     if (resumeBtn) resumeBtn.addEventListener('click', resumeGame);
-    if (restartBtn) restartBtn.addEventListener('click', () => location.reload()); // Simple reload for restart
-    if (exitBtn) exitBtn.addEventListener('click', () => window.location.href = 'index.html'); // Go back to main menu
+    if (restartBtn) restartBtn.addEventListener('click', () => location.reload());
+    if (exitBtn) exitBtn.addEventListener('click', () => window.location.href = 'index.html');
 
-    // Global ESC key listener for pause/resume/restart
+    // Global ESC key listener
     window.addEventListener('keydown', (event) => {
         if (event.code === 'Escape') {
-            if (event.target.tagName === 'INPUT') return; // Ignore if typing in an input
-
-            // If game is won or lost, ESC should restart
-            if (gameWon || lives <= 0) { // *** MODIFIED: Check gameWon or lives <= 0 ***
-                location.reload();
-            }
-            // Otherwise, toggle pause/resume
-            else if (isPaused) {
+            if (event.target.tagName === 'INPUT') return;
+            if (gameWon || lives <= 0) { // If game is over (win or lose)
+                location.reload(); // ESC restarts
+            } else if (isPaused) {
                 resumeGame();
             } else {
-                pauseGame();
+                pauseGame(false); // Normal pause
             }
         }
     });
 
-    // Zoom listener for third-person camera
+    // Zoom listener
     window.addEventListener('wheel', (event) => {
-        // Only allow zoom if in third person, not view mode, not paused, and not won
-        if (getCameraMode() === 'thirdPerson' && !viewMode && !isPaused && !gameWon && event.target === renderer.domElement) { // *** ADDED: Check gameWon flag ***
-            zoomLevel -= event.deltaY * 0.001; // Adjust zoom sensitivity
-            zoomLevel = Math.min(Math.max(zoomLevel, 0.4), 2.5); // Clamp zoom level
+        if (getCameraMode() === 'thirdPerson' && !viewMode && !isPaused && !gameWon && event.target === renderer.domElement) {
+            zoomLevel -= event.deltaY * 0.001;
+            zoomLevel = Math.min(Math.max(zoomLevel, 0.4), 2.5);
         }
     });
 
-    // Start the animation loop
-    clock.start();
-    if (!animationFrameId) { // Ensure loop starts if not already running
-        animate();
-    }
-    console.log("Game initialized and animation loop started.");
+    // Start the clock and animation loop (if not already started by loadLevel)
+    if (!clock.running) clock.start();
+    if (!animationFrameId) animate();
+
+    console.log("Game initialized.");
 }
 
-// Wait for DOM content to load before initializing the game
-document.addEventListener('DOMContentLoaded', initGame);
+// Wait for DOM content to load before initializing
+document.addEventListener('DOMContentLoaded', () => {
+    // Add the level display element dynamically if it doesn't exist in HTML
+    // Ensure levelDisplayEl is assigned correctly here
+    if (!document.getElementById('levelDisplay')) {
+        const levelDiv = document.createElement('div');
+        levelDiv.id = 'levelDisplay';
+        // Apply styling (same as before)
+        levelDiv.style.position = 'absolute';
+        levelDiv.style.top = '20px';
+        levelDiv.style.right = '150px'; // Adjust as needed
+        levelDiv.style.zIndex = '100';
+        levelDiv.style.color = 'white';
+        levelDiv.style.fontSize = '20px';
+        levelDiv.style.padding = '10px 15px';
+        levelDiv.style.background = 'rgba(0,0,0,0.5)';
+        levelDiv.style.borderRadius = '10px';
+        levelDiv.textContent = 'Level: 1'; // Initial text
+        document.body.appendChild(levelDiv);
+        levelDisplayEl = levelDiv; // Assign to the 'let' variable
+    } else {
+         // If it exists, ensure the 'let' variable references it
+         levelDisplayEl = document.getElementById('levelDisplay');
+    }
+    initGame(); // Initialize the game after DOM is ready
+});
 
-// Export functions needed by other modules (e.g., UI updates)
+// Export potentially useful functions
 export { updateScore, updateHitDisplay };
+
+// Helper function to find nearest column (needed for player repositioning)
+// Ensure this function uses the shared 'terrainColumns' array
+function findNearestColumn(x, z) {
+  if (terrainColumns.length === 0) {
+      console.warn("findNearestColumn called but terrainColumns is empty.");
+      return null; // Return null if no columns exist
+  }
+  let nearestColumn = null;
+  let minDistanceSq = Infinity;
+  for (const column of terrainColumns) {
+    const dx = column.x - x;
+    const dz = column.z - z;
+    const distanceSq = dx * dx + dz * dz;
+    if (distanceSq < minDistanceSq) {
+      minDistanceSq = distanceSq;
+      nearestColumn = column;
+    }
+  }
+  // If no column was found (shouldn't happen if array not empty, but safety check)
+  if (!nearestColumn) {
+      console.warn("findNearestColumn could not find a nearest column, returning first column.");
+      return terrainColumns[0];
+  }
+  return nearestColumn;
+}
