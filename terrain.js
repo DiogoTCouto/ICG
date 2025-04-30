@@ -1,11 +1,13 @@
 // terrain.js
 import * as THREE from 'three'; // Import THREE namespace for Vector3 etc.
+import * as CANNON from 'cannon-es'; // Import CANNON for physics
 // Import scene and material functions (createGlowingMaterial is used for goal pillar mesh)
 import { scene, createGlowingMaterial } from './scene.js';
 import { world, wallMaterial } from './physics.js';
 import { createNoise2D } from 'https://unpkg.com/simplex-noise@4.0.1/dist/esm/simplex-noise.js';
 // *** ADDED: Import functions from the wincondition.js file ***
 import { setupGoalPillar, createGoalMarker } from './wincondition.js';
+
 
 // Create a 2D noise function for more natural-looking terrain
 const noise2D = createNoise2D();
@@ -37,6 +39,7 @@ function createTriangularColumnMesh(columnSize, height, color, isUpsideDown = fa
     const radialSegments = 3;
     const geometry = new THREE.CylinderGeometry(radius, radius, height, radialSegments);
 
+    // Rotate the VISUAL mesh only for the triangular appearance
     if (isUpsideDown) {
         geometry.rotateY(Math.PI / 6);
     } else {
@@ -52,28 +55,34 @@ function createTriangularColumnMesh(columnSize, height, color, isUpsideDown = fa
     } else {
         // Load dirt texture for regular pillars
         const textureLoader = new THREE.TextureLoader();
+        // Use a variable to hold the material, assign texture map in callback
+        let pillarMaterial = new THREE.MeshPhongMaterial({
+            color: color, // Base color tint
+            flatShading: true
+        });
         const dirtTexture = textureLoader.load(
             'assets/wood_2.jpg', // Path relative to HTML file
             (texture) => {
                 texture.encoding = THREE.sRGBEncoding;
                 texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
                 texture.repeat.set(1, height / columnSize);
+                pillarMaterial.map = texture; // Assign texture map here
+                pillarMaterial.needsUpdate = true; // Important!
             },
             undefined,
             (error) => {
-                console.error("Error loading ground texture:", error);
+                console.error("Error loading ground texture (assets/wood_2.jpg):", error);
+                 // Fallback if texture fails
+                pillarMaterial.color.set(0xaaaaaa); // Gray fallback color
             }
         );
-        material = new THREE.MeshPhongMaterial({
-            color: color,
-            map: dirtTexture,
-            flatShading: true
-        });
+         material = pillarMaterial; // Assign the material reference
     }
 
     const mesh = new THREE.Mesh(geometry, material);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    mesh.isTerrainPillar = true; // Mark mesh for potential cleanup/identification
     return mesh;
 }
 
@@ -81,27 +90,25 @@ function createTriangularColumnMesh(columnSize, height, color, isUpsideDown = fa
  * Creates the physics body for a triangular column.
  * @param {number} columnSize - Base size of the column.
  * @param {number} height - Height of the column.
- * @param {boolean} isUpsideDown - Orientation of the triangle.
+ * @param {boolean} isUpsideDown - Orientation of the triangle (IGNORED for physics shape).
  * @returns {CANNON.Body} The created physics body.
  */
 function createTriangularColumnBody(columnSize, height, isUpsideDown = false) {
   const radius = columnSize / 2;
-  const radialSegments = 3;
+  const radialSegments = 3; // Number of segments for physics cylinder (can be higher for better approximation if needed)
+
+  // Create a standard CANNON.Cylinder shape. Its height axis is Y by default.
   const shape = new CANNON.Cylinder(radius, radius, height, radialSegments);
 
-  const q = new CANNON.Quaternion();
-  if (isUpsideDown) {
-    q.setFromEuler(Math.PI * 0.5, 0, Math.PI / 6);
-  } else {
-    q.setFromEuler(Math.PI * 0.5, 0, -Math.PI / 6);
-  }
-
   const body = new CANNON.Body({ mass: 0, material: wallMaterial });
-  body.addShape(shape, new CANNON.Vec3(0, 0, 0), q);
-  body.type = CANNON.Body.STATIC;
-  // body.isTerrain = true; // Mark if needed for other systems (kept from user version below)
 
-  // *** REMOVED: isGoal flag setting here - moved to setupGoalPillar ***
+  // *** FIXED: Add the shape WITHOUT the incorrect quaternion rotation ***
+  // The default Y-axis orientation of the CANNON.Cylinder matches the THREE.CylinderGeometry
+  body.addShape(shape); // Add shape at the body's origin (0,0,0) with default orientation
+
+  body.type = CANNON.Body.STATIC;
+  body.isTerrainPillar = true; // *** Standardized flag for identifying terrain ***
+
   return body;
 }
 
@@ -163,11 +170,13 @@ export function initBlockyTerrain(rows, cols, columnSize, maxHeight) {
 
                 // Create mesh initially as non-goal
                 const mesh = createTriangularColumnMesh(columnSize, columnHeight, color.getHex(), isUpsideDown, false);
+                // Position mesh centered vertically
                 mesh.position.set(triangleX, columnHeight * 0.5, triangleZ);
                 scene.add(mesh);
 
                 // Create physics body
                 const body = createTriangularColumnBody(columnSize, columnHeight, isUpsideDown);
+                 // Position physics body centered vertically (matches mesh)
                 body.position.set(triangleX, columnHeight * 0.5, triangleZ);
                 world.addBody(body);
 
@@ -225,7 +234,11 @@ export function initBlockyTerrain(rows, cols, columnSize, maxHeight) {
 
     createSafetyFloor(-30);
     waterLevel = lowestPoint + 0.5;
-    addWater(waterLevel, rows, cols, columnSize); // Pass original dimensions for water size calculation
+    // Calculate water size based on the actual span of the generated terrain
+    const terrainSpanX = (cols + 2 * bufferSize) * width;
+    const terrainSpanZ = (rows + 2 * bufferSize) * heightSpacing;
+    const waterSize = Math.max(terrainSpanX, terrainSpanZ) * 1.2; // Make water slightly larger than terrain span
+    addWater(waterLevel, waterSize);
 }
 
 
@@ -315,7 +328,7 @@ export function initSpacedBlockyTerrain(rows, cols, columnSize, maxHeight, spaci
                 const body = createTriangularColumnBody(columnSize, columnHeight, isUpsideDown);
                 body.position.set(triangleX, columnHeight * 0.5, triangleZ);
                 world.addBody(body);
-                body.isTerrain = true; // Mark terrain bodies (from user's version)
+                // body.isTerrain = true; // *** REMOVED - Using isTerrainPillar now ***
 
                 // Store column data, ensuring body is included
                 terrainColumns.push({
@@ -428,6 +441,7 @@ function addWater(waterHeight, waterSize) {
 
     waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
     waterMesh.position.y = waterHeight;
+    waterMesh.isWater = true; // Mark water mesh
     scene.add(waterMesh);
     startWaterAnimation(waterMesh);
 }
@@ -479,6 +493,7 @@ function createSafetyFloor(yPosition) {
   const floorBody = new CANNON.Body({ mass: 0, material: wallMaterial });
   floorBody.addShape(floorShape);
   floorBody.position.set(0, yPosition, 0);
+  floorBody.isSafetyFloor = true; // Mark floor body
   world.addBody(floorBody);
   const floorGeometry = new THREE.BoxGeometry(floorSize, floorThickness, floorSize);
   const floorMaterial = new THREE.MeshBasicMaterial({
@@ -486,6 +501,7 @@ function createSafetyFloor(yPosition) {
   });
   const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
   floorMesh.position.set(0, yPosition, 0);
+  floorMesh.isSafetyFloor = true; // Mark floor mesh
   scene.add(floorMesh);
 }
 
@@ -538,7 +554,7 @@ export function findJumpableColumns(x, z, maxDistance, maxHeightDiff) {
 // Keep original functions for compatibility if they exist
 export function initTerrain() {
     console.warn("initTerrain() called, but initBlockyTerrain() or initSpacedBlockyTerrain() is recommended.");
-    initBlockyTerrain(10, 10, 3, 18); // Fallback
+    initSpacedBlockyTerrain(10, 10, 3, 18); // Fallback to spaced terrain
 }
 
 // Export terrain columns and water-related functions

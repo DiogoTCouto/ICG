@@ -1,5 +1,6 @@
 // walls.js
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es'; // Import CANNON for physics
 
 import { scene } from './scene.js';
 import { world, wallMaterial } from './physics.js';

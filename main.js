@@ -1,5 +1,7 @@
 // main.js - Updated for Level System & Fixed const assignment error
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es'; // Import CANNON for physics
+
 import { scene, camera, renderer, cameraRotation, cameraTilt, isDragging } from './scene.js';
 import { world } from './physics.js';
 // Import terrain functions for BOTH levels

@@ -1,5 +1,6 @@
 // ball.js
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es'; // Import CANNON for physics
 
 import { scene, createGlowingMaterial } from './scene.js';
 import { world, ballMaterial } from './physics.js';
@@ -73,7 +74,7 @@ function createBall() {
   // 4) Create physics body
   const ballBody = createBallPhysics(x, spawnHeight, z, ballType);
   world.addBody(ballBody);
-  
+
   // Store the ball type in the body for reference
   ballBody.ballType = ballType.id;
 
@@ -117,10 +118,10 @@ function createBall() {
 function selectRandomBallType() {
   // Calculate total spawn chance
   const totalChance = BALL_TYPES.reduce((sum, type) => sum + type.spawnChance, 0);
-  
+
   // Get random value within the total range
   const roll = Math.random() * totalChance;
-  
+
   // Find which type this roll corresponds to
   let runningTotal = 0;
   for (const type of BALL_TYPES) {
@@ -129,7 +130,7 @@ function selectRandomBallType() {
       return type;
     }
   }
-  
+
   // Default fallback
   return BALL_TYPES[0];
 }
@@ -140,44 +141,44 @@ function selectRandomBallType() {
 function createBallMesh(ballType) {
   // Create geometry based on ball type
   const geometry = new THREE.SphereGeometry(ballType.size, 24, 24);
-  
+
   // Choose material based on ball type
   let material;
   if (ballType.glow) {
     material = createGlowingMaterial(ballType.color, 0.6);
   } else {
-    material = new THREE.MeshPhongMaterial({ 
+    material = new THREE.MeshPhongMaterial({
       color: ballType.color,
       shininess: 70,
       specular: 0xffffff
     });
   }
-  
+
   // Create mesh
   const mesh = new THREE.Mesh(geometry, material);
-  
+
   // Add details based on ball type
   if (ballType.id === 'heavy') {
     // Add rings to heavy ball to make it look more distinct
     const ringGeometry = new THREE.TorusGeometry(ballType.size * 1.05, ballType.size * 0.1, 8, 24);
-    const ringMaterial = new THREE.MeshPhongMaterial({ 
+    const ringMaterial = new THREE.MeshPhongMaterial({
       color: 0x222222,
       shininess: 30
     });
     const ring = new THREE.Mesh(ringGeometry, ringMaterial);
     ring.rotation.x = Math.PI / 2;
     mesh.add(ring);
-    
+
     // Add second perpendicular ring
     const ring2 = new THREE.Mesh(ringGeometry.clone(), ringMaterial);
     ring2.rotation.y = Math.PI / 2;
     mesh.add(ring2);
   }
-  
+
   // Cast and receive shadows (if we implement shadow mapping)
   mesh.castShadow = true;
   mesh.receiveShadow = false;
-  
+
   return mesh;
 }
 
@@ -195,25 +196,25 @@ function createBallPhysics(x, y, z, ballType) {
   });
   body.addShape(shape);
   body.position.set(x, y, z);
-  
+
   // Add small random initial velocity for more natural behavior
   body.velocity.set(
-    (Math.random() - 0.5) * 2, 
-    -0.5 - Math.random(), 
+    (Math.random() - 0.5) * 2,
+    -0.5 - Math.random(),
     (Math.random() - 0.5) * 2
   );
-  
+
   // Add random spin
   body.angularVelocity.set(
     (Math.random() - 0.5) * 5,
     (Math.random() - 0.5) * 5,
     (Math.random() - 0.5) * 5
   );
-  
+
   // Make sure it's awake
   body.sleepState = CANNON.Body.AWAKE;
   body.allowSleep = false;
-  
+
   return body;
 }
 
@@ -248,11 +249,11 @@ function createTrailSystem(ballType) {
     opacity: 0.6,
     depthWrite: false
   });
-  
+
   // Start with empty positions
   const positions = new Float32Array(30 * 3); // 30 trail points max
   trailGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  
+
   return new THREE.Points(trailGeometry, trailMaterial);
 }
 
@@ -264,30 +265,32 @@ const removeBodiesQueue = [];
  */
 function setupCollisionHandling(ballBody, ballType) {
   ballBody.addEventListener('collide', (event) => {
-    // Check what we collided with
-    if (event.body === getPlayerBody()) {
-      // Player hit!
-      playerHitCount++;
-      if (hitCountEl) hitCountEl.textContent = playerHitCount;
-      updateHitDisplay(playerHitCount);
-      
-      // Create hit effect
-      createHitEffect(ballBody.position, ballType);
-      
-      // Queue ball for removal instead of removing immediately
-      queueBallForRemoval(ballBody);
-    } 
-    else if (event.body.isTerrain) {
-      // Hit terrain - create bounce effect if enabled for this type
-      if (ballType.bounceEffect) {
-        createBounceEffect(ballBody.position, ballType);
-      }
-      
-      // Queue ball for removal instead of removing immediately
-      queueBallForRemoval(ballBody);
+    const playerBodyRef = getPlayerBody(); // Get player body reference
+
+    // *** FIXED: Check for collision with player OR terrain pillar ***
+    if ((playerBodyRef && event.body === playerBodyRef) || event.body.isTerrainPillar) {
+        // Player hit OR Terrain hit!
+
+        if (playerBodyRef && event.body === playerBodyRef) {
+            // Player specific logic
+            playerHitCount++;
+            if (hitCountEl) hitCountEl.textContent = playerHitCount;
+            updateHitDisplay(playerHitCount);
+            createHitEffect(ballBody.position, ballType); // Player hit effect
+        } else if (event.body.isTerrainPillar) {
+             // Terrain specific logic
+             if (ballType.bounceEffect) {
+                createBounceEffect(ballBody.position, ballType); // Terrain bounce effect
+             }
+        }
+
+        // Queue ball for removal in either case (player or terrain hit)
+        queueBallForRemoval(ballBody);
     }
+    // Note: Balls hitting other balls or the safety floor won't trigger removal here
   });
 }
+
 
 /**
  * Queue a ball for removal after physics step completes
@@ -323,50 +326,52 @@ function createHitEffect(position, ballType) {
     transparent: true,
     opacity: 0.8
   });
-  
+
   const positions = new Float32Array(particleCount * 3);
-  
+
   // Create particles at random positions around impact
   for (let i = 0; i < particleCount; i++) {
     positions[i * 3] = position.x + (Math.random() - 0.5) * 2;
     positions[i * 3 + 1] = position.y + (Math.random() - 0.5) * 2;
     positions[i * 3 + 2] = position.z + (Math.random() - 0.5) * 2;
   }
-  
+
   particles.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  
+
   const particleSystem = new THREE.Points(particles, particleMaterial);
   scene.add(particleSystem);
-  
+
   // Animate and remove after 1 second
   let time = 0;
+  let animationFrameId = null; // Store animation frame ID
   function animate() {
     time += 0.05;
-    
+
     // Move particles outward
-    const positions = particles.attributes.position.array;
+    const currentPositions = particles.attributes.position.array; // Use currentPositions to avoid confusion
     for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] += (Math.random() - 0.5) * 0.2;
-      positions[i * 3 + 1] += Math.random() * 0.2;
-      positions[i * 3 + 2] += (Math.random() - 0.5) * 0.2;
+      currentPositions[i * 3] += (Math.random() - 0.5) * 0.2;
+      currentPositions[i * 3 + 1] += Math.random() * 0.2;
+      currentPositions[i * 3 + 2] += (Math.random() - 0.5) * 0.2;
     }
     particles.attributes.position.needsUpdate = true;
-    
+
     // Fade out
     particleMaterial.opacity -= 0.02;
-    
+
     // Remove when done
-    if (time > 1.5) {
+    if (time > 1.5 || particleMaterial.opacity <= 0) { // Also check opacity
       scene.remove(particleSystem);
       particles.dispose();
       particleMaterial.dispose();
+      // No need to cancel animationFrameId here as it stops naturally
       return;
     }
-    
-    requestAnimationFrame(animate);
+
+    animationFrameId = requestAnimationFrame(animate); // Request next frame
   }
-  
-  animate();
+
+  animate(); // Start animation
 }
 
 /**
@@ -382,38 +387,40 @@ function createBounceEffect(position, ballType) {
     side: THREE.DoubleSide,
     depthWrite: false
   });
-  
+
   const ring = new THREE.Mesh(ringGeometry, ringMaterial);
   ring.rotation.x = -Math.PI / 2; // Flat on ground
   ring.position.copy(position);
   ring.position.y += 0.05; // Slightly above ground
   scene.add(ring);
-  
+
   // Animate and remove
   let time = 0;
+  let animationFrameId = null; // Store animation frame ID
   function animate() {
     time += 0.05;
-    
+
     // Expand ring
     ring.scale.x += 0.2;
     ring.scale.y += 0.2;
     ring.scale.z += 0.2;
-    
+
     // Fade out
     ringMaterial.opacity -= 0.03;
-    
+
     // Remove when done
-    if (time > 1.0) {
+    if (time > 1.0 || ringMaterial.opacity <= 0) { // Also check opacity
       scene.remove(ring);
       ringGeometry.dispose();
       ringMaterial.dispose();
+      // No need to cancel animationFrameId here
       return;
     }
-    
-    requestAnimationFrame(animate);
+
+    animationFrameId = requestAnimationFrame(animate); // Request next frame
   }
-  
-  animate();
+
+  animate(); // Start animation
 }
 
 /**
@@ -422,11 +429,21 @@ function createBounceEffect(position, ballType) {
 function updateBalls() {
   // Process any pending removals first
   processRemovals();
-  
+
   const currentTime = Date.now();
-  
+
   for (let i = balls.length - 1; i >= 0; i--) {
     const ball = balls[i];
+    // Safety check if ball or its properties were somehow removed prematurely
+    if (!ball || !ball.body || !ball.mesh || !ball.shadow) {
+        console.warn("Attempting to update an invalid ball object, skipping.", ball);
+        // Optionally remove it from the array if it's invalid
+        if (ball && balls.includes(ball)) {
+             balls.splice(i, 1);
+        }
+        continue;
+    }
+
     const body = ball.body;
     const mesh = ball.mesh;
     const shadow = ball.shadow;
@@ -445,14 +462,17 @@ function updateBalls() {
         column.height + 0.01,
         body.position.z
       );
-      
+
       // Scale shadow based on height from ground (further = smaller shadow)
       const heightAboveGround = body.position.y - column.height;
       const shadowScale = Math.max(0.3, 1 - heightAboveGround * 0.02);
       shadow.scale.set(shadowScale, shadowScale, 1);
-      
+
       // Fade shadow based on height
       shadow.material.opacity = Math.max(0.1, 0.4 - heightAboveGround * 0.01);
+    } else {
+        // If no column found (e.g., over water), maybe hide or fade shadow
+        shadow.material.opacity = 0;
     }
 
     // Update trail if available
@@ -465,7 +485,9 @@ function updateBalls() {
 
     // Remove if below safety floor
     if (body.position.y < -25) {
-      removeBall(body);
+      // Use the queue mechanism instead of direct removal
+      queueBallForRemoval(body);
+      // removeBall(body); // Avoid direct removal here
     }
   }
 }
@@ -477,34 +499,34 @@ function updateTrail(ball, currentTime) {
   const trailMaxLength = 10; // Maximum number of trail points
   const mesh = ball.mesh;
   const trail = ball.trail;
-  
+
   // Add current position to trail history
   ball.trailPositions.unshift({
     position: mesh.position.clone(),
     time: currentTime
   });
-  
+
   // Keep only the most recent positions
   if (ball.trailPositions.length > trailMaxLength) {
     ball.trailPositions.pop();
   }
-  
+
   // Update trail geometry
   const positions = trail.geometry.attributes.position.array;
-  
+
   for (let i = 0; i < ball.trailPositions.length; i++) {
     const pos = ball.trailPositions[i].position;
     positions[i * 3] = pos.x;
     positions[i * 3 + 1] = pos.y;
     positions[i * 3 + 2] = pos.z;
-    
+
     // Fade out opacity based on age
     const age = (currentTime - ball.trailPositions[i].time) / 1000; // seconds
     const pointOpacity = Math.max(0, 1 - age);
     // We can't set individual point opacities with basic material,
     // but we could use a custom shader for this if needed
   }
-  
+
   // Fill remaining positions with last point
   for (let i = ball.trailPositions.length; i < trailMaxLength; i++) {
     if (ball.trailPositions.length > 0) {
@@ -512,9 +534,14 @@ function updateTrail(ball, currentTime) {
       positions[i * 3] = lastPos.x;
       positions[i * 3 + 1] = lastPos.y;
       positions[i * 3 + 2] = lastPos.z;
+    } else {
+        // If no positions yet, set to zero or a default
+        positions[i * 3] = 0;
+        positions[i * 3 + 1] = 0;
+        positions[i * 3 + 2] = 0;
     }
   }
-  
+
   // Update the buffer
   trail.geometry.attributes.position.needsUpdate = true;
   ball.lastTrailUpdate = currentTime;
@@ -528,35 +555,36 @@ function removeBall(body) {
   if (index === -1) return;
 
   const ball = balls[index];
-  
-  // Remove from physics world
-  if (world.bodies.indexOf(ball.body) !== -1) {
-    world.remove(ball.body);
+
+  // *** FIXED: Use world.removeBody() instead of world.remove() ***
+  // Remove from physics world only if it's actually in the world
+  if (world.bodies.includes(ball.body)) {
+    world.removeBody(ball.body);
+  } else {
+    // console.warn("Attempted to remove ball body that was not in the world.", ball.body);
   }
-  
+
   // Remove meshes from scene
-  scene.remove(ball.mesh);
-  scene.remove(ball.shadow);
-  if (ball.trail) scene.remove(ball.trail);
-  
+  if (ball.mesh && ball.mesh.parent) scene.remove(ball.mesh);
+  if (ball.shadow && ball.shadow.parent) scene.remove(ball.shadow);
+  if (ball.trail && ball.trail.parent) scene.remove(ball.trail);
+
   // Clean up geometries and materials
-  if (ball.mesh.geometry) ball.mesh.geometry.dispose();
-  if (ball.mesh.material) {
+  if (ball.mesh?.geometry) ball.mesh.geometry.dispose();
+  if (ball.mesh?.material) {
     if (Array.isArray(ball.mesh.material)) {
-      ball.mesh.material.forEach(m => m.dispose());
+      ball.mesh.material.forEach(m => m?.dispose()); // Add null check
     } else {
-      ball.mesh.material.dispose();
+      ball.mesh.material?.dispose(); // Add null check
     }
   }
-  
-  if (ball.shadow.geometry) ball.shadow.geometry.dispose();
-  if (ball.shadow.material) ball.shadow.material.dispose();
-  
-  if (ball.trail) {
-    if (ball.trail.geometry) ball.trail.geometry.dispose();
-    if (ball.trail.material) ball.trail.material.dispose();
-  }
-  
+
+  if (ball.shadow?.geometry) ball.shadow.geometry.dispose();
+  if (ball.shadow?.material) ball.shadow.material.dispose();
+
+  if (ball.trail?.geometry) ball.trail.geometry.dispose();
+  if (ball.trail?.material) ball.trail.material.dispose();
+
   // Remove from array
   balls.splice(index, 1);
 }
@@ -582,7 +610,7 @@ function addBallType(ballType) {
     console.error('Invalid ball type');
     return false;
   }
-  
+
   // Check if a type with this ID already exists
   const existingIndex = BALL_TYPES.findIndex(type => type.id === ballType.id);
   if (existingIndex !== -1) {
@@ -592,7 +620,7 @@ function addBallType(ballType) {
     // Add new type
     BALL_TYPES.push(ballType);
   }
-  
+
   return true;
 }
 
@@ -606,7 +634,7 @@ function createSpecificBall(typeId, x, y, z) {
     console.error(`Ball type "${typeId}" not found`);
     return;
   }
-  
+
   // Create the ball at the specified position
   const ballMesh = createBallMesh(ballType);
   ballMesh.position.set(x, y, z);
@@ -614,7 +642,7 @@ function createSpecificBall(typeId, x, y, z) {
 
   const ballBody = createBallPhysics(x, y, z, ballType);
   world.addBody(ballBody);
-  
+
   ballBody.ballType = typeId;
 
   const column = findNearestColumn(x, z);
@@ -638,16 +666,16 @@ function createSpecificBall(typeId, x, y, z) {
     trailPositions: [],
     lastTrailUpdate: Date.now()
   });
-  
+
   return ballBody;
 }
 
 // Export functions
-export { 
-  spawnBallMachine, 
-  updateBalls, 
-  createBall, 
-  createSpecificBall, 
+export {
+  spawnBallMachine,
+  updateBalls,
+  createBall,
+  createSpecificBall,
   addBallType,
   BALL_TYPES,
   processRemovals  // Export this to be called after physics step

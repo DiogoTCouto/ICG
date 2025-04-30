@@ -2,6 +2,7 @@
 // Revised jump logic for reliable double jump.
 // Added win condition collision detection triggering level advance.
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es'; // Use cannon-es for ES module support
 import { scene, camera, renderer } from './scene.js';
 import { world, playerMaterial } from './physics.js';
 
@@ -39,6 +40,8 @@ function createCubePlayer() {
     const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial); mouth.position.set(0, -0.3, eyeZ); mouth.rotation.set(0, 0, Math.PI); playerGroup.add(mouth);
     playerGroup.castShadow = true;
     body.castShadow = true;
+    // Set the visual center relative to the physics body center
+    // playerGroup.position.y = -playerPhysicsHeight / 2; // Adjust if needed based on model origin
     return playerGroup;
 }
 function createSpherePlayer() {
@@ -62,7 +65,9 @@ function createSpherePlayer() {
     playerGroup.castShadow = true;
     body.castShadow = true;
     ring.castShadow = true;
-    return playerGroup;
+     // Set the visual center relative to the physics body center
+    // playerGroup.position.y = -playerPhysicsHeight / 2; // Adjust if needed based on model origin
+   return playerGroup;
  }
 function createRobotPlayer() {
     const playerGroup = new THREE.Group(); const headColor = 0xaaaaaa; const bodyColor = 0x777777; const headDepth = 1.4; const bodyDepth = 1.6;
@@ -87,7 +92,9 @@ function createRobotPlayer() {
     playerGroup.castShadow = true;
     head.castShadow = true;
     body.castShadow = true;
-    return playerGroup;
+     // Set the visual center relative to the physics body center
+    // playerGroup.position.y = -playerPhysicsHeight / 2; // Adjust if needed based on model origin
+   return playerGroup;
  }
 // --- Player Models Dictionary ---
 const playerModels = {
@@ -102,11 +109,12 @@ let playerMesh = null;
 let playerModel = 'cube';
 
 // --- Player Physics Dimensions ---
-const playerPhysicsRadius = 1.0;
-const playerPhysicsHeight = 5.0;
+export const playerPhysicsRadius = 1.0; // Export if needed elsewhere
+export const playerPhysicsHeight = 2.5; // Keep adjusted height
 // ---
 
-const playerHeightOffset = playerPhysicsHeight / 2 + 0.1; // Eye height offset
+// Offset should be half the physics height to align bottom of physics body with ground
+const playerHeightOffset = playerPhysicsHeight / 2;
 
 // Movement parameters
 const moveSpeed = 12;
@@ -138,7 +146,7 @@ const mouseSensitivity = 0.002;
 
 // --- Ground Check Variables ---
 const groundCheckRay = new CANNON.Ray(new CANNON.Vec3(), new CANNON.Vec3(0, -1, 0));
-const groundCheckDistance = playerPhysicsHeight / 2 + 0.2;
+const groundCheckDistance = playerPhysicsHeight / 2 + 0.2; // Check slightly below the body center
 const raycastOptions = { collisionFilterMask: -1, skipBackfaces: true };
 const rayResult = new CANNON.RaycastResult();
 const groundCheckOffsets = [
@@ -172,6 +180,7 @@ function initPlayer(initialModel = 'cube') {
     playerPitch = 0;
     canWin = true; // Reset win flag on init
 
+    // Use the adjusted physics height
     const playerCylinderShape = new CANNON.Cylinder(playerPhysicsRadius, playerPhysicsRadius, playerPhysicsHeight, 12);
 
     // Remove previous body if exists
@@ -183,6 +192,19 @@ function initPlayer(initialModel = 'cube') {
     if (playerMesh && scene.children.includes(playerMesh)) {
          scene.remove(playerMesh);
          // Proper disposal would go here if needed
+         playerMesh.traverse(child => {
+            if (child.isMesh) {
+                child.geometry?.dispose();
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m?.dispose());
+                    } else {
+                        child.material?.dispose();
+                    }
+                }
+            }
+         });
+         playerMesh = null;
     }
 
 
@@ -190,9 +212,10 @@ function initPlayer(initialModel = 'cube') {
         mass: 70, material: playerMaterial,
         fixedRotation: true,
         linearDamping: 0.1,
-        angularDamping: 1.0
+        angularDamping: 1.0 // Prevent spinning due to minor collisions
     });
-    playerBody.addShape(playerCylinderShape);
+    // Add shape centered within the body
+    playerBody.addShape(playerCylinderShape); // Shape is added relative to body's origin (center)
     playerBody.isPlayer = true; // Mark as player body if needed elsewhere
 
     // Reset position (will be set properly by loadLevel in main.js)
@@ -205,7 +228,7 @@ function initPlayer(initialModel = 'cube') {
     const createModelFn = playerModels[playerModel]?.create || createCubePlayer;
     playerMesh = createModelFn();
     playerMesh.castShadow = true;
-    playerMesh.position.copy(playerBody.position);
+    // Initial mesh position will be updated in updatePlayer
     playerMesh.quaternion.setFromEuler(new THREE.Euler(0, playerYaw, 0));
     playerMesh.visible = (cameraMode === 'thirdPerson');
 
@@ -230,7 +253,7 @@ function handlePlayerCollision(event) {
       canWin = false; // Prevent triggering win/advance multiple times per level
 
       // Call the global function in main.js to handle level advance or final win
-      if (typeof window.advanceLevelOrWin === 'function') { // *** CHANGED Function Call ***
+      if (typeof window.advanceLevelOrWin === 'function') {
         window.advanceLevelOrWin();
       } else {
         console.error("advanceLevelOrWin function not found on window!");
@@ -277,13 +300,14 @@ function changePlayerModel(modelName) {
                 }
             }
         });
+        playerMesh = null; // Clear reference
     }
 
     playerModel = modelName;
     const createModelFn = playerModels[playerModel].create;
     playerMesh = createModelFn();
     playerMesh.castShadow = true;
-    playerMesh.position.copy(currentPosition);
+    // Position will be set in updatePlayer
     playerMesh.quaternion.copy(currentRotation);
     playerMesh.visible = (cameraMode === 'thirdPerson');
 
@@ -411,28 +435,30 @@ function updatePlayer(deltaTime) { // Added deltaTime parameter
     // --- 1. Multi-Ray Ground Check ---
     let groundHit = false;
     const currentPos = playerBody.position;
-    const rayVerticalOffset = 0.1; // Start ray slightly inside the body
+    // Start ray from the bottom center of the physics body
+    const rayStartOffset = playerPhysicsHeight / 2 - 0.05; // Slightly inside the bottom
 
     for (const offset of groundCheckOffsets) {
         _rayFrom.set(
             currentPos.x + offset.x,
-            currentPos.y - rayVerticalOffset, // Start slightly below center
+            currentPos.y - rayStartOffset, // Start slightly above the bottom
             currentPos.z + offset.z
         );
+        // Check down a short distance
         _rayTo.set(
             _rayFrom.x,
-            _rayFrom.y - (groundCheckDistance - rayVerticalOffset), // Check down further
+            _rayFrom.y - 0.3, // Check 0.3 units down from near the bottom
             _rayFrom.z
         );
         rayResult.reset();
-        // Raycast against everything except the player itself (if needed, adjust mask)
-        world.raycastClosest(_rayFrom, _rayTo, raycastOptions, rayResult);
-        if (rayResult.hasHit) {
-            // Optional: Check if the hit body is valid ground (e.g., not another dynamic object)
-            // if (rayResult.body && (rayResult.body.isTerrainPillar || rayResult.body.isSafetyFloor)) {
+        // Raycast against everything except the player itself
+        const hit = world.raycastClosest(_rayFrom, _rayTo, raycastOptions, rayResult);
+        if (hit) {
+            // Check if the hit body is terrain or safety floor
+            if (rayResult.body && (rayResult.body.isTerrainPillar || rayResult.body.isSafetyFloor)) {
                  groundHit = true;
-                 break; // Exit loop if any ray hits the ground
-            // }
+                 break; // Exit loop if any ray hits valid ground
+            }
         }
     }
     // --- End Multi-Ray Check ---
@@ -533,8 +559,11 @@ function updatePlayer(deltaTime) { // Added deltaTime parameter
 
     // --- 6. Update Mesh Position ---
     if (playerMesh) {
+        // *** FIXED: Copy physics body position directly to visual mesh ***
         playerMesh.position.copy(playerBody.position);
-        // playerMesh.position.y -= 0.0; // Apply potential visual offset if needed
+        // The physics body's position is its center.
+        // The visual mesh should also be centered around this point.
+        // Any visual offset should be handled within the create...Player functions if the model's origin isn't its center.
     }
 
     // --- 7. Update Mesh Rotation (Third Person - Visual Only) ---
@@ -542,36 +571,26 @@ function updatePlayer(deltaTime) { // Added deltaTime parameter
         const horizontalSpeedSq = currentVelocity.x * currentVelocity.x + currentVelocity.z * currentVelocity.z;
         let targetYaw = playerYaw; // Default to current yaw if not moving
 
-        if (horizontalSpeedSq > 0.1 * 0.1) {
+        // Determine target yaw based on velocity or input direction
+        if (horizontalSpeedSq > 0.1 * 0.1) { // If moving significantly
             targetYaw = Math.atan2(currentVelocity.x, currentVelocity.z);
         }
-        else if (hasInput) {
+        else if (hasInput) { // If not moving fast but holding input keys
             targetYaw = Math.atan2(_movementDirection.x, _movementDirection.z);
         }
 
+        // Smoothly rotate the player mesh towards the target yaw
         const wrap = (a, b) => (a % b + b) % b;
         const angleDiff = wrap(targetYaw - playerYaw + Math.PI, Math.PI * 2) - Math.PI;
-        playerYaw += angleDiff * 0.15;
+        playerYaw += angleDiff * 0.15; // Rotation speed factor
 
         _playerMeshQuaternion.setFromEuler(new THREE.Euler(0, playerYaw, 0, 'YXZ'));
         playerMesh.quaternion.slerp(_playerMeshQuaternion, 0.2); // Slerp for smoother visual rotation
     }
 
     // --- 8. Fall Check / Respawn ---
-    // Respawn logic should ideally be handled by main.js when level transitions occur,
-    // but keep a basic fall check here for safety during a level.
-    if (playerBody.position.y < -50) { // Increased fall distance before respawn
-        console.warn("Player fell too far! Respawning at level start.");
-        // In a multi-level setup, this should ideally trigger a level restart or
-        // reposition the player at the current level's start point.
-        // For now, just reset velocity and hope main.js handles position.
-        playerBody.velocity.set(0,0,0);
-        playerBody.angularVelocity.set(0,0,0);
-        // A proper respawn would require knowing the level's start point.
-        // Let's call resetPlayerState to reset jumps/win flag.
-        resetPlayerState();
-        // Repositioning should happen in main.js's level loading.
-    }
+    // Respawn logic is handled exclusively in main.js
+
 } // End of updatePlayer function
 
 
@@ -580,7 +599,7 @@ function getPlayerBody() { return playerBody; }
 function getPlayerModel() { return playerModel; }
 function getPlayerMesh() { return playerMesh; }
 function getCameraMode() { return cameraMode; }
-function getPlayerHeightOffset() { return playerHeightOffset; }
+function getPlayerHeightOffset() { return playerHeightOffset; } // This might need renaming if it's confusing
 function getPlayerYaw() { return playerYaw; }
 function getPlayerPitch() { return playerPitch; }
 
@@ -600,5 +619,6 @@ export {
     getPlayerPitch,
     createCubePlayer,
     createSpherePlayer,
-    createRobotPlayer
+    createRobotPlayer,
+
 };

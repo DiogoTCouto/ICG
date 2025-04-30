@@ -6,25 +6,34 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&display=swap" rel="stylesheet">
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* --- Styles remain the same as your provided HTML --- */
+    /* --- Styles --- */
     body {
-      background: linear-gradient(45deg, #1a213a, #2e3350, #1a213a);
-      background: url('assets/menu_bg.png') no-repeat center/cover;
-      background-size: 200% 200%;
+      /* *** RESTORED original background image style *** */
+      background: url('assets/menu_bg.png') repeat center/cover;
+      /* background: linear-gradient(45deg, #1a213a, #2e3350, #1a213a); */ /* Removed gradient */
+      background-size: cover; /* Ensure it covers */
       background-position: center center;
       background-repeat: no-repeat;
       height: 100vh;
-      position: relative;
-      animation: GradientMove 15s ease infinite;
+      margin: 0;
+      overflow: hidden;
       position: relative;
       color: #fff;
+      font-family: 'Poppins', sans-serif;
     }
-    @keyframes GradientMove {
-      0%   { background-position:   0% 50%; }
-      50%  { background-position: 100% 50%; }
-      100% { background-position:   0% 50%; }
+
+
+    /* Background canvas for floating cubes - KEEPING this as it was in original user file */
+    #background-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        pointer-events: none;
     }
 
     /* split menu into two columns */
@@ -33,23 +42,45 @@
       top: 0; left: 0;
       width: 100%; height: 100%;
       display: flex;
+      flex-direction: column; /* Stack vertically on small screens */
       align-items: center;
       justify-content: center;
-      gap: 3rem;
+      gap: 2rem; /* Reduced gap */
+      padding: 1rem; /* Add padding for smaller screens */
+      box-sizing: border-box; /* Include padding in width/height */
       z-index: 10;
     }
 
+    /* Responsive layout for panels */
+    @media (min-width: 768px) { /* Apply side-by-side layout on medium screens and up */
+        .menu-container {
+            flex-direction: row; /* Side-by-side */
+            gap: 3rem;
+            padding: 2rem;
+        }
+    }
+
+
     /* left panel: rotating model */
     .left-panel {
-      width: 300px;        /* was 240px */
-      height: 300px;       /* was 240px */
-      overflow: visible;   /* allow preview to spill out */
+      /* Using original user dimensions */
+      width: 500px;
+      height: 500px;
+      /* width: 200px; */ /* Reverted size */
+      /* height: 200px; */ /* Reverted size */
+      overflow: visible;
+      flex-shrink: 0;
     }
     #modelCanvas {
       width: 100%;
       height: 100%;
       display: block;
+      cursor: grab;
     }
+     #modelCanvas:active {
+        cursor: grabbing;
+    }
+
 
       /* right panel: title + buttons centered */
      .right-panel {
@@ -57,9 +88,13 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        text-align: center;
+        flex-shrink: 0;
       }
 
+        /* Using original title style */
         .right-panel .game-title {
+          /* Copied from original user file's style for .game-title */
           position: static;
           transform: none;
           top: auto;
@@ -67,9 +102,14 @@
           font-size: 6rem;     /* bump up title size */
           margin-bottom: 1.5rem; /* space to buttons */
           pointer-events: none;
+          /* Added from previous version */
+          color: #fff;
+          text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
         }
 
+        /* Using original menu buttons style */
         .menu-buttons {
+          /* Copied from original user file */
           position: static;
           top: auto;
           left: auto;
@@ -78,9 +118,14 @@
           display: flex;
           flex-direction: column;
           gap: 12px;
+          /* Added from previous version for centering */
+          width: 100%;
+          max-width: 250px;
         }
 
+        /* Using original menu button style */
         .menu-button {
+          /* Copied from original user file */
           padding: 10px 0;
           font-size: 0.9rem; /* Keep font size */
           border-radius: 6px; /* Keep slightly rounded corners */
@@ -97,12 +142,14 @@
         }
 
         .menu-button:hover {
+          /* Copied from original user file */
           background: rgba(0, 0, 0, 0.6);
           transform: scale(1.04);
           box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
         }
 
         .menu-button:active {
+            /* Copied from original user file */
             transform: scale(1);
             background: rgba(0, 0, 0, 0.5);
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -110,27 +157,30 @@
 
         /* Style the Play button differently */
         .menu-button.play {
+          /* Copied from original user file */
           background: #4CAF50;
           border-color: #388E3C;
         }
 
         .menu-button.play:hover {
+           /* Copied from original user file */
            background: #5DC061;
            border-color: #4CAF50;
            transform: scale(1.04);
            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
         }
         .menu-button.play:active {
+           /* Copied from original user file */
            background: #388E3C;
            transform: scale(1);
            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
 
-        /* --- Modal Styling (kept consistent) --- */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 2000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
-        .modal.active { opacity: 1; }
-        .modal-content { background: rgba(42, 42, 48, 0.95); backdrop-filter: blur(8px); border-radius: 10px; padding: 30px 40px; width: 90%; max-width: 550px; position: relative; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); color: white; transform: scale(0.9); opacity: 0; transition: all 0.3s ease-out; border: 1px solid rgba(255, 255, 255, 0.1); }
+        /* --- Modal Styling (kept consistent with original) --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 2000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; padding: 1rem; box-sizing: border-box; }
+        .modal.active { display: flex; opacity: 1; }
+        .modal-content { background: rgba(42, 42, 48, 0.95); backdrop-filter: blur(8px); border-radius: 10px; padding: 30px 40px; width: 90%; max-width: 550px; position: relative; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); color: white; transform: scale(0.9); opacity: 0; transition: all 0.3s ease-out; border: 1px solid rgba(255, 255, 255, 0.1); max-height: 90vh; overflow-y: auto; }
         .modal.active .modal-content { transform: scale(1); opacity: 1; }
         .close-button { position: absolute; top: 12px; right: 18px; font-size: 26px; font-weight: bold; line-height: 1; cursor: pointer; color: #aaa; transition: color 0.3s; z-index: 1; }
         .close-button:hover { color: white; }
@@ -140,20 +190,22 @@
         .player-option:hover { border-color: #4CAF50; background: rgba(76, 175, 80, 0.1); transform: scale(1.03); }
         .player-option.selected { border-color: #4CAF50; background: rgba(76, 175, 80, 0.2); box-shadow: 0 0 10px rgba(76, 175, 80, 0.3); }
         .player-preview { width: 100%; height: 60px; display: flex; justify-content: center; align-items: center; margin-bottom: 10px; font-size: 1.1rem; font-weight: bold; }
-        .save-button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 6px; font-size: 1.0rem; font-weight: bold; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+        .save-button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 6px; font-size: 1.0rem; font-weight: bold; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px; margin-top: 15px; }
         .save-button:hover { background: #43A047; transform: scale(1.02); }
         .controls-content { max-width: 600px; }
         .controls-group { margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 15px; }
         .controls-group:last-of-type { border-bottom: none; padding-bottom: 0; }
         .controls-group h3 { font-size: 1.1rem; color: #4CAF50; margin-bottom: 10px; }
-        .control-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.9rem; }
-        .key { background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 6px; font-family: monospace; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); min-width: 40px; text-align: center; }
+        .control-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.9rem; flex-wrap: wrap; gap: 5px; }
+        .control-item span:first-child { margin-right: auto; }
+        .key { background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 6px; font-family: monospace; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); min-width: 40px; text-align: center; display: inline-block; margin-left: 4px; }
         .about-content { text-align: center; }
+        /* Using original placeholder image style */
         .about-content img { max-width: 120px; border-radius: 50%; margin-bottom: 15px; border: 3px solid #4CAF50; }
         .about-content p { font-size: 0.9rem; line-height: 1.6; margin-bottom: 10px; color: #ddd; }
         .about-content p:last-of-type { margin-bottom: 0; }
 
-        /* --- Loading Screen Styling --- */
+        /* --- Loading Screen Styling (kept consistent with original) --- */
         .loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a1d; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; opacity: 1; transition: opacity 0.5s ease-out; }
         .loading-icon { width: 60px; height: 60px; border: 4px solid rgba(255,255,255,.2); border-radius: 50%; border-top-color: #4CAF50; animation: spin 1s linear infinite; margin-bottom: 25px; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -169,7 +221,6 @@
       </style>
 </head>
 <body>
-  <canvas id="background-canvas"></canvas>
   <div class="overlay"></div>
 
   <div class="loading-screen" id="loadingScreen">
@@ -187,11 +238,12 @@
     <div class="right-panel">
       <div class="game-title">Dodge It!</div>
       <div class="menu-buttons">
-      <button class="menu-button play" id="playButton">Play Game</button>
-      <button class="menu-button" id="customizeButton">Customize</button>
-      <button class="menu-button" id="controlsButton">Controls</button>
-      <button class="menu-button" id="viewModeButton">View Mode</button>
-      <button class="menu-button" id="aboutButton">About</button>
+        <button class="menu-button play" id="playButton">Play Game</button>
+        <button class="menu-button" id="customizeButton">Customize</button>
+        <button class="menu-button" id="controlsButton">Controls</button>
+        <button class="menu-button" id="viewModeButton">View Mode</button>
+        <button class="menu-button" id="aboutButton">About</button>
+      </div>
     </div>
   </div>
 
@@ -215,22 +267,22 @@
       <h2 class="modal-title">Game Controls</h2>
       <div class="controls-group">
         <h3>Movement</h3>
-        <div class="control-item"><span>Move Forward</span><span class="key">W</span> / <span class="key">↑</span></div>
-        <div class="control-item"><span>Move Left</span><span class="key">A</span> / <span class="key">←</span></div>
-        <div class="control-item"><span>Move Backward</span><span class="key">S</span> / <span class="key">↓</span></div>
-        <div class="control-item"><span>Move Right</span><span class="key">D</span> / <span class="key">→</span></div>
-        <div class="control-item"><span>Jump / Double Jump</span><span class="key">Space</span></div>
+        <div class="control-item"><span>Move Forward</span><div><span class="key">W</span> / <span class="key">↑</span></div></div>
+        <div class="control-item"><span>Move Left</span><div><span class="key">A</span> / <span class="key">←</span></div></div>
+        <div class="control-item"><span>Move Backward</span><div><span class="key">S</span> / <span class="key">↓</span></div></div>
+        <div class="control-item"><span>Move Right</span><div><span class="key">D</span> / <span class="key">→</span></div></div>
+        <div class="control-item"><span>Jump / Double Jump</span><div><span class="key">Space</span></div></div>
       </div>
       <div class="controls-group">
         <h3>Camera & Game</h3>
-        <div class="control-item"><span>Toggle First/Third Person</span><span class="key">F</span></div>
-        <div class="control-item"><span>Look (First Person)</span><span>Mouse</span></div>
-        <div class="control-item"><span>Zoom (Third Person)</span><span>Scroll Wheel</span></div>
-        <div class="control-item"><span>Pause / Resume</span><span class="key">ESC</span></div>
+        <div class="control-item"><span>Toggle First/Third Person</span><div><span class="key">F</span></div></div>
+        <div class="control-item"><span>Look (First Person)</span><div><span>Mouse</span></div></div>
+        <div class="control-item"><span>Zoom (Third Person)</span><div><span>Scroll Wheel</span></div></div>
+        <div class="control-item"><span>Pause / Resume</span><div><span class="key">ESC</span></div></div>
       </div>
       <div class="controls-group">
         <h3>Interaction</h3>
-        <div class="control-item"><span>Collect Cupcake</span><span>Click</span></div>
+        <div class="control-item"><span>Collect Cupcake</span><div><span>Click</span></div></div>
       </div>
     </div>
   </div>
@@ -243,56 +295,24 @@
       <p>Dodge the falling balls while navigating the treacherous terrain! Collect cupcakes for points.</p>
       <p>Built with Three.js & Cannon-es.</p>
       <p>Project for Intro to Computer Graphics.</p>
-      <p>Version 1.2.3</p> <p>&copy; 2025 [Your Name/Group Name]</p>
+      <p>Version 1.2.3</p>
+      <p>&copy; 2025 [Your Name/Group Name]</p>
     </div>
   </div>
 
   <div id="gameContainer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;">
       </div>
-
   <script type="importmap">
   {
     "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/"
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/",
+      "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
     }
   }
   </script>
 
   <script>
-    // Floating cubes background (Remains the same)
-    const canvas = document.getElementById('background-canvas');
-    const ctx    = canvas.getContext('2d');
-    let W, H;
-    function resize() {
-      W = canvas.width  = window.innerWidth;
-      H = canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resize);
-    resize();
-
-    // Create some drifting squares
-    const cubes = Array.from({length:40}, () => ({
-      x: Math.random()*W,
-      y: Math.random()*H,
-      size: 20 + Math.random()*30,
-      speed: 1 + Math.random()*2
-    }));
-
-    function draw() {
-      ctx.clearRect(0,0,W,H);
-      cubes.forEach(c => {
-        c.y -= c.speed;
-        if (c.y + c.size < 0) c.y = H + c.size;
-        ctx.fillStyle = 'rgba(255,255,255,0.03)';
-        ctx.fillRect(c.x, c.y, c.size, c.size);
-      });
-      requestAnimationFrame(draw);
-    }
-    draw();
-    </script>
-  <script>
-    // --- Menu Interaction and Game Start Logic (Unchanged) ---
     const userPreferences = { playerModel: 'cube', viewMode: false };
     const mainMenu = document.getElementById('mainMenu');
     const customizeModal = document.getElementById('customizeModal');
@@ -302,13 +322,11 @@
     const loadingBar = document.getElementById('loadingBar');
     const gameContainer = document.getElementById('gameContainer');
 
-    // --- Functions (Unchanged - Full code copied for completeness) ---
     function openModal(modalId) { const modal = document.getElementById(modalId); if (!modal) return; modal.style.display = 'flex'; setTimeout(() => { modal.classList.add('active'); }, 10); }
     function closeModal(modalId) { const modal = document.getElementById(modalId); if (!modal) return; modal.classList.remove('active'); setTimeout(() => { modal.style.display = 'none'; }, 300); }
-    function simulateLoading(callback) { loadingScreen.style.display = 'flex'; loadingScreen.style.opacity = '1'; let progress = 0; loadingBar.style.width = '0%'; const interval = setInterval(() => { progress += Math.random() * 10 + 5; if (progress >= 100) { progress = 100; clearInterval(interval); loadingBar.style.width = `${progress}%`; setTimeout(() => { loadingScreen.style.opacity = '0'; setTimeout(() => { loadingScreen.style.display = 'none'; if (callback) callback(); }, 500); }, 400); } else { loadingBar.style.width = `${progress}%`; } }, 150); }
+    function simulateLoading(callback) { if (!loadingScreen || !loadingBar) return; loadingScreen.style.display = 'flex'; loadingScreen.style.opacity = '1'; let progress = 0; loadingBar.style.width = '0%'; const interval = setInterval(() => { progress += Math.random() * 10 + 5; if (progress >= 100) { progress = 100; clearInterval(interval); loadingBar.style.width = `${progress}%`; setTimeout(() => { loadingScreen.style.opacity = '0'; setTimeout(() => { loadingScreen.style.display = 'none'; if (callback) callback(); }, 500); }, 400); } else { loadingBar.style.width = `${progress}%`; } }, 150); }
     function startGame(isViewMode) { userPreferences.viewMode = isViewMode; console.log("Starting game with preferences:", userPreferences); if(mainMenu) { mainMenu.style.transition = 'opacity 0.3s ease-out'; mainMenu.style.opacity = '0'; setTimeout(() => { if (mainMenu) mainMenu.style.display = 'none'; }, 300); } else { console.error("Main menu element not found"); } setTimeout(() => { simulateLoading(() => { const params = new URLSearchParams(); params.set('model', userPreferences.playerModel); params.set('viewMode', userPreferences.viewMode); window.location.href = `game.html?${params.toString()}`; }); }, 50); }
 
-     // --- Event Listeners (Unchanged) ---
     document.getElementById('playButton')?.addEventListener('click', () => startGame(false));
     document.getElementById('customizeButton')?.addEventListener('click', () => openModal('customizeModal'));
     document.getElementById('controlsButton')?.addEventListener('click', () => openModal('controlsModal'));
@@ -318,87 +336,243 @@
     document.getElementById('closeControls')?.addEventListener('click', () => closeModal('controlsModal'));
     document.getElementById('closeAbout')?.addEventListener('click', () => closeModal('aboutModal'));
     const playerOptions = document.querySelectorAll('.player-option');
-    playerOptions.forEach(option => { option.addEventListener('click', () => { playerOptions.forEach(opt => opt.classList.remove('selected')); option.classList.add('selected'); userPreferences.playerModel = option.getAttribute('data-model'); }); });
+    playerOptions.forEach(option => { option.addEventListener('click', () => { playerOptions.forEach(opt => opt.classList.remove('selected')); option.classList.add('selected'); userPreferences.playerModel = option.getAttribute('data-model'); /* Trigger preview update */ window.dispatchEvent(new CustomEvent('updatePreviewModel', { detail: userPreferences.playerModel })); }); });
     document.getElementById('saveCustomize')?.addEventListener('click', () => { closeModal('customizeModal'); });
 
-     // Initial Setup
-    loadingScreen.style.opacity = '0';
-    loadingScreen.style.display = 'none';
-    if(mainMenu) { mainMenu.style.opacity = '1'; /* mainMenu doesn't need display:flex if children are absolute */ }
+     // Initial Setup (Copied from original user file)
+     if(loadingScreen) {
+        loadingScreen.style.opacity = '0';
+        loadingScreen.style.display = 'none';
+     }
+     if(mainMenu) {
+        mainMenu.style.opacity = '1';
+     }
 
   </script>
 
   <script type="module">
-    import * as THREE from 'three'; // Import THREE using the import map
+    import * as THREE from 'three';
+    // *** ENSURE this path is correct relative to index.html ***
+    import { createCubePlayer, createSpherePlayer, createRobotPlayer } from './player.js';
+
+    console.log("Preview Script: Initializing..."); // Debug Log
 
     const modelCanvas = document.getElementById('modelCanvas');
-    if (modelCanvas) { // Check if canvas exists
-        const renderer  = new THREE.WebGLRenderer({ canvas: modelCanvas, alpha: true, antialias: true });
-        const scene     = new THREE.Scene();
-        const camera    = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-        camera.position.set(0, 1.2, 5);
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    if (modelCanvas) {
+        console.log("Preview Script: modelCanvas found."); // Debug Log
+        const renderer = new THREE.WebGLRenderer({ canvas: modelCanvas, alpha: true, antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, modelCanvas.clientWidth / modelCanvas.clientHeight, 0.1, 100);
+        // camera.position.set(0, 1.2, 5); // Adjusted camera position slightly
+        camera.position.set(0, 1.2, 7); // Zoom out a bit more
+
+        // Lighting
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
         dirLight.position.set(5, 10, 7);
         scene.add(dirLight);
-        let previewMesh;
 
+        let previewMesh = null;
+        let fallingObjects = [];
+        const availableModels = {
+            cube: createCubePlayer,
+            sphere: createSpherePlayer,
+            robot: createRobotPlayer
+        };
+        const modelKeys = Object.keys(availableModels);
+
+        // Function to create/update the main preview model
         function makePreview(type) {
-          if (previewMesh) scene.remove(previewMesh);
-          switch(type) {
-            case 'sphere':
-              previewMesh = new THREE.Mesh(new THREE.SphereGeometry(1.2,32,32), new THREE.MeshPhongMaterial({color:0x3366ff}));
-              break;
-            case 'robot':
-              previewMesh = new THREE.Group();
-              const body = new THREE.Mesh(new THREE.BoxGeometry(1.5,1.5,1.5), new THREE.MeshPhongMaterial({color:0x777777})); previewMesh.add(body);
-              const head = new THREE.Mesh(new THREE.SphereGeometry(0.6,16,16), new THREE.MeshPhongMaterial({color:0xaaaaaa})); head.position.set(0,1.2,0); previewMesh.add(head);
-              break;
-            default: // cube
-              previewMesh = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), new THREE.MeshPhongMaterial({color:0x00cc44}));
+          console.log(`Preview Script: makePreview called with type: ${type}`); // Debug Log
+          if (!availableModels[type]) {
+              console.error(`Preview Script: Invalid model type "${type}". Defaulting to cube.`);
+              type = 'cube'; // Fallback to cube if type is invalid
           }
-          scene.add(previewMesh);
+
+          if (previewMesh) {
+              console.log("Preview Script: Removing previous mesh."); // Debug Log
+              scene.remove(previewMesh);
+              // Simple cleanup - may need more for complex models
+              if (previewMesh.geometry) previewMesh.geometry.dispose();
+              if (previewMesh.material) {
+                 if (Array.isArray(previewMesh.material)) {
+                    previewMesh.material.forEach(m => m?.dispose()); // Add null check
+                 } else {
+                    previewMesh.material?.dispose(); // Add null check
+                 }
+              }
+              previewMesh = null; // Clear reference
+          }
+
+          try {
+              const createFn = availableModels[type];
+              previewMesh = createFn(); // Create the new model
+              if (!previewMesh || typeof previewMesh.scale === 'undefined') {
+                 console.error(`Preview Script: Failed to create model of type "${type}". Function did not return a valid THREE object.`);
+                 makePreview('cube'); // Attempt fallback to cube
+                 return;
+              }
+              previewMesh.scale.setScalar(0.6); // Use original scale
+              previewMesh.position.y = -0.5; // Lower the main model slightly
+              scene.add(previewMesh);
+              console.log(`Preview Script: Added ${type} model to scene.`); // Debug Log
+          } catch (error) {
+              console.error(`Preview Script: Error creating model type "${type}":`, error);
+              // Optionally try to create a fallback model
+              if (type !== 'cube') {
+                  console.log("Preview Script: Attempting fallback to cube model.");
+                  makePreview('cube');
+              }
+          }
         }
 
-        makePreview('cube'); // Initial preview
-
-        // Update preview when customize option changes (listen to the modal's options)
-         document.querySelectorAll('.player-option').forEach(option => {
-            option.addEventListener('click', () => {
-                const modelType = option.getAttribute('data-model');
-                if (modelType) {
-                    makePreview(modelType);
+        // Function to create a smaller falling player model
+        function createFallingModel() {
+            const randomType = modelKeys[Math.floor(Math.random() * modelKeys.length)];
+            const createFn = availableModels[randomType];
+            let mesh;
+            try {
+                mesh = createFn();
+                if (!mesh || typeof mesh.scale === 'undefined') {
+                    console.warn(`Preview Script: Failed to create falling model of type "${randomType}". Skipping.`);
+                    return null; // Skip this object if creation fails
                 }
-            });
-        });
+            } catch (error) {
+                 console.warn(`Preview Script: Error creating falling model type "${randomType}":`, error);
+                 return null; // Skip this object
+            }
 
 
-        const spheres = Array.from({ length: 12 }, () => {
-          const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.15,16,16), new THREE.MeshPhongMaterial({color:0xff4444}));
-          mesh.position.set((Math.random()-0.5)*1.2, Math.random()*4+1, (Math.random()-0.5)*0.3);
-          scene.add(mesh);
-          return { mesh, speed: 0.01 + Math.random()*0.02 };
-        });
+            mesh.scale.setScalar(0.15 + Math.random() * 0.1);
 
-        function animatePreview() {
-          requestAnimationFrame(animatePreview);
-          if (previewMesh) previewMesh.rotation.y += 0.01;
-          spheres.forEach(o => {
-            o.mesh.position.y -= o.speed;
-            if (o.mesh.position.y < -1) o.mesh.position.y = Math.random()*4+1;
-          });
-          const w = modelCanvas.clientWidth;
-          const h = modelCanvas.clientHeight;
-          if (renderer.domElement.width !== w || renderer.domElement.height !== h) {
-            renderer.setSize(w, h, false); // false = don't update style
-            camera.aspect = w/h;
-            camera.updateProjectionMatrix();
-          }
-          renderer.render(scene, camera);
+            const angle = Math.random() * Math.PI * 2;
+            const minRadius = 2.0;
+            const maxRadius = 4.0;
+            const dist = minRadius + Math.random() * (maxRadius - minRadius);
+
+            mesh.position.set(
+                Math.cos(angle) * dist,
+                Math.random() * 4 + 3,
+                Math.sin(angle) * dist
+            );
+
+            mesh.rotation.set(
+                Math.random() * Math.PI * 2,
+                Math.random() * Math.PI * 2,
+                Math.random() * Math.PI * 2
+            );
+
+            scene.add(mesh);
+            return {
+                mesh: mesh,
+                speed: 0.01 + Math.random() * 0.02,
+                rotationSpeed: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.02,
+                    (Math.random() - 0.5) * 0.02,
+                    (Math.random() - 0.5) * 0.02
+                )
+             };
         }
-        animatePreview();
+
+        // Initialize falling objects
+        for (let i = 0; i < 15; i++) {
+            const fallingObj = createFallingModel();
+            if (fallingObj) { // Only push if creation was successful
+                fallingObjects.push(fallingObj);
+            }
+        }
+        console.log(`Preview Script: Initialized ${fallingObjects.length} falling objects.`); // Debug Log
+
+        // Initial preview model based on preference
+        makePreview(userPreferences.playerModel);
+
+        // Listen for custom event to update preview (triggered by menu script)
+        window.addEventListener('updatePreviewModel', (event) => {
+            const modelType = event.detail;
+            console.log(`Preview Script: Received updatePreviewModel event for type: ${modelType}`); // Debug Log
+            if (modelType && availableModels[modelType]) {
+                makePreview(modelType);
+            } else {
+                console.warn(`Preview Script: Invalid model type received in event: ${modelType}`);
+            }
+        });
+
+
+        // --- Mouse Drag Controls ---
+        let isDragging = false;
+        let previousMouseX = 0;
+        modelCanvas.addEventListener('mousedown', (event) => { isDragging = true; previousMouseX = event.clientX; modelCanvas.style.cursor = 'grabbing'; });
+        modelCanvas.addEventListener('mousemove', (event) => { if (!isDragging || !previewMesh) return; const deltaX = event.clientX - previousMouseX; previewMesh.rotation.y += deltaX * 0.01; previousMouseX = event.clientX; });
+        modelCanvas.addEventListener('mouseup', () => { isDragging = false; modelCanvas.style.cursor = 'grab'; });
+        modelCanvas.addEventListener('mouseleave', () => { if (isDragging) { isDragging = false; modelCanvas.style.cursor = 'grab'; } });
+        // --- End Mouse Drag Controls ---
+
+
+        // Animation loop
+        let frameCount = 0; // Debug Log
+        function animatePreview() {
+          animationFrameId = requestAnimationFrame(animatePreview); // Store frame ID
+
+          // Rotate the main preview model slowly if not being dragged
+          if (previewMesh && !isDragging) {
+              previewMesh.rotation.y += 0.005;
+          }
+
+          // Animate falling objects
+          fallingObjects.forEach(obj => {
+            if (!obj || !obj.mesh) return; // Safety check
+            obj.mesh.position.y -= obj.speed;
+            obj.mesh.rotation.x += obj.rotationSpeed.x;
+            obj.mesh.rotation.y += obj.rotationSpeed.y;
+            obj.mesh.rotation.z += obj.rotationSpeed.z;
+
+            // Reset if fallen below view
+            if (obj.mesh.position.y < -3) {
+                const angle = Math.random() * Math.PI * 2;
+                const minRadius = 2.0;
+                const maxRadius = 4.0;
+                const dist = minRadius + Math.random() * (maxRadius - minRadius);
+                obj.mesh.position.set(
+                    Math.cos(angle) * dist,
+                    Math.random() * 4 + 4,
+                    Math.sin(angle) * dist
+                );
+            }
+          });
+
+          // Handle canvas resizing
+          const width = modelCanvas.clientWidth;
+          const height = modelCanvas.clientHeight;
+          const needResize = renderer.domElement.width !== width || renderer.domElement.height !== height;
+          if (needResize) {
+            renderer.setSize(width, height, false);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            // console.log("Preview Script: Resized canvas to", width, height); // Debug Log - can be noisy
+          }
+
+          try {
+              renderer.render(scene, camera);
+              // if (frameCount % 60 === 0) console.log("Preview Script: Rendering frame", frameCount); // Debug Log every 60 frames
+              frameCount++;
+          } catch(error) {
+              console.error("Preview Script: Error during render:", error);
+              cancelAnimationFrame(animationFrameId); // Stop loop on error
+          }
+        }
+
+        // --- Start Animation ---
+        let animationFrameId; // Declare variable to hold the animation frame ID
+        // Add a small delay before starting animation to ensure canvas is ready
+        setTimeout(() => {
+             console.log("Preview Script: Starting animation loop."); // Debug Log
+             animatePreview();
+        }, 100); // 100ms delay
+
+
     } else {
-        console.warn("modelCanvas element not found.");
+        console.error("Preview Script: modelCanvas element NOT found."); // Changed to error
     }
   </script>
 

@@ -2,6 +2,8 @@
 // Generates terrain for Level 2 (night theme with lampposts).
 // Disabled shadow casting on lamppost lights to prevent WebGL errors.
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es'; // Import CANNON for physics
+
 import { scene, createGlowingMaterial } from './scene.js'; // Needs scene access
 import { world, wallMaterial } from './physics.js';
 import { createNoise2D } from 'https://unpkg.com/simplex-noise@4.0.1/dist/esm/simplex-noise.js';

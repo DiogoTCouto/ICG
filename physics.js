@@ -4,6 +4,7 @@
 
 // 1) Create the physics world
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es'; // Use cannon-es for ES module support
 
 const world = new CANNON.World();
 world.gravity.set(0, -40, 0); // Increased gravity further (try -20, -25, or -30)

@@ -3,6 +3,7 @@
 
 import * as THREE from 'three'; // Required for Vector3
 import { createGlowingMaterial } from './scene.js'; // Needed for the goal marker visual
+import * as CANNON from 'cannon-es'; // Import CANNON for physics
 
 /**
  * Identifies the goal pillar based on criteria (e.g., the last one created)

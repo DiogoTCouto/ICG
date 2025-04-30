@@ -2,6 +2,8 @@
 // This version includes more spacing between pillars and a designated goal pillar.
 // Goal marker height increased significantly.
 import * as THREE from 'three'; // Import THREE namespace for Vector3 etc.
+import * as CANNON from 'cannon-es'; // Import CANNON for physics
+
 import { scene, createGlowingMaterial } from './scene.js'; // Import scene and createGlowingMaterial
 import { world, wallMaterial } from './physics.js';
 import { createNoise2D } from 'https://unpkg.com/simplex-noise@4.0.1/dist/esm/simplex-noise.js';
