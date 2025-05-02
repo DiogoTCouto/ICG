@@ -41,25 +41,20 @@ function setupGoalPillar(terrainColumns) {
  * @returns {THREE.Mesh} The marker mesh.
  */
 function createGoalMarker(position, scene) {
-    const markerHeight = 20; // Height of the marker beam
+    const markerHeight = 200; // Height of the marker beam
     const markerRadius = 0.4; // Radius of the marker
     const geometry = new THREE.CylinderGeometry(markerRadius, markerRadius, markerHeight, 16);
 
     // Use a bright, unlit material that's always visible
     // Using MeshBasicMaterial as createGlowingMaterial might not be available here
     // If createGlowingMaterial is needed, it should be imported from scene.js
-    const material = new THREE.MeshBasicMaterial({
-        color: 0xffff00, // Bright yellow
-        transparent: true,
-        opacity: 0.9,
-        depthWrite: false // Render on top slightly
-    });
-    /* // Alternative using createGlowingMaterial if imported:
+
+    
     const material = createGlowingMaterial(0xffff00, 1.0); // Yellow glow
     material.depthWrite = false;
     material.transparent = true;
     material.opacity = 0.9;
-    */
+    
 
     const marker = new THREE.Mesh(geometry, material);
 

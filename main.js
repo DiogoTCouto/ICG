@@ -22,7 +22,7 @@ import {
 // Import item/enemy functions
 import { spawnBallMachine, updateBalls, processRemovals as processBallRemovals } from './ball.js';
 import { handleClick, startCupcakeSpawner, updateCupcakes, processRemovals as processCupcakeRemovals } from './cupcake.js';
-
+import { lavaMaterial } from './terrain_level2.js';
 // --- Game State Variables ---
 const urlParams = new URLSearchParams(window.location.search);
 const initialModel = urlParams.get('model') || 'cube';
@@ -270,7 +270,7 @@ function loadLevel(levelNumber) {
     } else if (levelNumber === 2) {
         // Use parameters for Level 2
         // Pass the shared terrainColumns array to be populated
-        initSpacedBlockyTerrainLevel2(terrainColumns, 18, 18, 4, 25, 2.0, 0.15);
+        initSpacedBlockyTerrainLevel2(terrainColumns, 0.2, 0.2, 15, 20, 2, 0.15);
         // Goal data is now handled internally by terrain/wincondition modules
 
         // Ensure night mode
@@ -311,20 +311,17 @@ function loadLevel(levelNumber) {
  * Called by player.js when goal is reached. Handles level advance or final win.
  */
 window.advanceLevelOrWin = function() {
-    // Add a small delay to prevent immediate re-trigger if player stays on goal
-    if (!getPlayerBody()?.canWin) return; // Check player's internal flag if it exists
+    // don’t advance if we’re paused or already in a win state
+    if (isPaused || gameWon) return;
 
     if (currentLevel < maxLevels) {
-        // Advance to the next level
         const nextLevel = currentLevel + 1;
         console.log(`Level ${currentLevel} Complete! Advancing to Level ${nextLevel}`);
         showStatusMessage(`Level ${currentLevel} Complete!`, 3000);
-        // Load the next level after a short delay
         setTimeout(() => {
             loadLevel(nextLevel);
-        }, 1500); // 1.5 second delay before loading next level
+        }, 1500);
     } else {
-        // Completed the last level - trigger final win
         console.log(`Level ${currentLevel} Complete! Game Won!`);
         triggerFinalWin();
     }
@@ -376,7 +373,10 @@ function animate() {
     updateBalls();
     updateCupcakes();
     // updateWater(deltaTime); // Water animation might be handled internally now
-
+    if (lavaMaterial && lavaMaterial.uniforms && lavaMaterial.uniforms.uTime) {
+        // Use elapsed time (in seconds) to drive the lava
+        lavaMaterial.uniforms.uTime.value = performance.now() * 0.001;
+      }
     // Camera Update Logic (remains the same as previous version)
     const playerBody = getPlayerBody();
     const currentCameraMode = getCameraMode();
@@ -470,6 +470,8 @@ function initGame() {
     const resumeBtn = document.getElementById('resumeBtn');
     const restartBtn = document.getElementById('restartBtn');
     const exitBtn = document.getElementById('exitBtn');
+    const debugLevelBtn = document.getElementById('debugLevelBtn');  // ← your “Next Level (Debug)” button
+
 
     if (setRateBtn && rateInput) {
         rateInput.value = currentRate;
@@ -513,6 +515,14 @@ function initGame() {
     if (resumeBtn) resumeBtn.addEventListener('click', resumeGame);
     if (restartBtn) restartBtn.addEventListener('click', () => location.reload());
     if (exitBtn) exitBtn.addEventListener('click', () => window.location.href = 'index.html');
+
+    // **DEBUG: Next Level button**
+    if (debugLevelBtn) {
+        debugLevelBtn.addEventListener('click', () => {
+        console.log('Debug: advancing to next level');
+        window.advanceLevelOrWin();
+        });
+    }
 
     // Global ESC key listener
     window.addEventListener('keydown', (event) => {

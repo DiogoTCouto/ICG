@@ -312,7 +312,7 @@ function toggleDayNight() {
     dayNightBtn.textContent = isNightMode ? "Toggle Day Mode" : "Toggle Night Mode";
     dayNightBtn.className = isNightMode ? "day-mode" : "night-mode";
   }
-  
+  window.isNightModeActive = isNightMode;
   return isNightMode;
 }
 

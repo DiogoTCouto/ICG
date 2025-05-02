@@ -8,13 +8,45 @@ import { scene, createGlowingMaterial } from './scene.js'; // Needs scene access
 import { world, wallMaterial } from './physics.js';
 import { createNoise2D } from 'https://unpkg.com/simplex-noise@4.0.1/dist/esm/simplex-noise.js';
 import { setupGoalPillar, createGoalMarker } from './wincondition.js'; // Reuse win condition logic
-
-// --- Reused Helper Functions (Copied from terrain.js) ---
+import {
+    initSpacedBlockyTerrain } from './terrain.js';                                           
 
 /**
  * Creates the visual mesh for a triangular column.
  * Handles visual difference for the goal pillar.
  */
+
+const lavaVertexShader = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+  }
+`;
+
+const lavaFragmentShader = `
+  uniform float uTime;
+  uniform sampler2D uSampler;
+  uniform sampler2D uNoiseSampler;
+  varying vec2 vUv;
+
+  void main() {
+    // scale & scroll UVs over time
+    vec2 p = vUv * 8.0;
+    p.x += uTime * 0.05;
+
+    // sample noise twice with time‐offset
+    float n1 = texture2D( uNoiseSampler, p + vec2( uTime * 0.02, uTime * 0.02 ) ).r;
+    float n2 = texture2D( uNoiseSampler, p - vec2( uTime * 0.02, uTime * 0.02 ) ).g;
+
+    // combine noise to look up color ramp
+    float f = n1 + n2;
+    vec3 color = texture2D( uSampler, vec2( f, 0.0 ) ).rgb;
+
+    gl_FragColor = vec4( color, 1.0 );
+  }
+`;
+
 function createTriangularColumnMesh(columnSize, height, color, isUpsideDown = false, isGoal = false) {
     const radius = columnSize / 2;
     const radialSegments = 3;
@@ -131,9 +163,34 @@ function createLamppost(position) {
     return lamppostGroup;
 }
 
+let lavaMaterial = null;
 
+function createLavaShaderPlane(y, spanX, spanZ) {
+    // set up the three uniforms, pointing at your local files
+    const uniforms = {
+      uTime:        { value: 0 },
+      uSampler:     { value: new THREE.TextureLoader().load('./assets/lavatile.jpg') },
+      uNoiseSampler:{ value: new THREE.TextureLoader().load('./assets/lava_noise.png') }
+    };
+  
+    const mat = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader:   lavaVertexShader,
+      fragmentShader: lavaFragmentShader,
+      side:           THREE.DoubleSide
+    });
+  
+    const geo  = new THREE.PlaneGeometry(spanX, spanZ);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = y;
+    mesh.name = 'LavaShaderPlane';
+    scene.add(mesh);
+  
+    return mat;
+  }
 // --- Level 2 Terrain Generation ---
-let terrainColumns = [];
+// let terrainColumns = [];
 let goalPillarData = null;
 let lowestPoint = Infinity;
 const noise2D = createNoise2D();
@@ -141,131 +198,127 @@ const noise2D = createNoise2D();
 /**
  * initSpacedBlockyTerrainLevel2 - Creates terrain for Level 2.
  */
-export function initSpacedBlockyTerrainLevel2(columnsArrayRef, rows, cols, columnSize, maxHeight, spacing = 2, lamppostProbability = 0.05) { // Reduced lamppost probability further
+
+
+
+
+/**
+ * initSpacedBlockyTerrainLevel2 - Night-mode copy of Level 1 layout,
+ *                          with random lampposts for guidance.
+ *
+ * @param {Array}  columnsArrayRef    shared reference array (same as Level 1)
+ * @param {number} rows               number of rows in the grid
+ * @param {number} cols               number of columns in the grid
+ * @param {number} columnSize         diameter of each pillar
+ * @param {number} maxHeight          maximum pillar height
+ * @param {number} spacing            spacing multiplier between pillars
+ * @param {number} lamppostProbability  chance per pillar to spawn a lamppost
+ */
+export function initSpacedBlockyTerrainLevel2(
+    columnsArrayRef,
+    rows, cols,
+    columnSize,
+    maxHeight,
+    spacing = 2
+  ) {
+    console.log("Initializing Level 2 Independent Terrain…");
+  
+    // 1) Clear any old pillar data
     columnsArrayRef.length = 0;
-    terrainColumns = columnsArrayRef;
-    goalPillarData = null;
-    lowestPoint = Infinity;
 
-    console.log("Initializing Level 2 Terrain...");
-
-    const noiseScale = 0.12;
-    const heightScale = maxHeight * 0.8;
-    const baseHeight = maxHeight * 0.2;
-    const lowColor = new THREE.Color(0x404050);
-    const midColor = new THREE.Color(0x606070);
-    const highColor = new THREE.Color(0x707090);
-    const width = columnSize * spacing;
-    const heightSpacing = width * Math.sqrt(3) / 2;
-    const xOffset = width / 2;
-    const zOffset = heightSpacing / 2;
-    const bufferSize = 4;
-
-    // --- Pillar Creation Loop ---
-    for (let row = -bufferSize; row < rows + bufferSize; row++) {
-        for (let col = -bufferSize; col < cols + bufferSize; col++) {
-            const xPos = col * width * 1.2;
-            const zPos = row * heightSpacing * 1.2;
-
-            for (let triangleType = 0; triangleType < 2; triangleType++) {
-                const isUpsideDown = triangleType === 1;
-                let triangleX = xPos;
-                let triangleZ = zPos;
-                if (isUpsideDown) {
-                    triangleX += xOffset;
-                    triangleZ += zOffset;
-                }
-
-                const noiseValue = noise2D(triangleX * noiseScale, triangleZ * noiseScale);
-                const normalizedNoise = (noiseValue + 1) * 0.5;
-                const columnHeight = normalizedNoise * heightScale + baseHeight;
-                lowestPoint = Math.min(lowestPoint, columnHeight);
-
-                const heightRatio = (columnHeight - baseHeight) / heightScale;
-                let color;
-                if (heightRatio < 0.5) {
-                    color = lowColor.clone().lerp(midColor, heightRatio * 2);
-                } else {
-                    color = midColor.clone().lerp(highColor, (heightRatio - 0.5) * 2);
-                }
-
-                const mesh = createTriangularColumnMesh(columnSize, columnHeight, color.getHex(), isUpsideDown, false);
-                mesh.position.set(triangleX, columnHeight * 0.5, triangleZ);
-                scene.add(mesh);
-
-                const body = createTriangularColumnBody(columnSize, columnHeight, isUpsideDown);
-                body.position.set(triangleX, columnHeight * 0.5, triangleZ);
-                world.addBody(body);
-
-                const columnData = {
-                    x: triangleX, z: triangleZ, height: columnHeight,
-                    radius: columnSize / 2, isUpsideDown: isUpsideDown,
-                    mesh: mesh, body: body
-                };
-                terrainColumns.push(columnData);
-
-                // Add Lamppost?
-                const isEdgeArea = Math.abs(row) < 1 || Math.abs(col) < 1 || row >= rows - 1 || col >= cols - 1;
-                // Add lamppost only if pillar is reasonably high
-                if (!isEdgeArea && columnHeight > baseHeight + heightScale * 0.3 && Math.random() < lamppostProbability) {
-                    const lamppostPosition = new THREE.Vector3(triangleX, columnHeight, triangleZ);
-                    createLamppost(lamppostPosition);
-                }
-            }
+    // 2) Bring in a brand-new noise field
+    const noise2D = createNoise2D();
+  
+    // 3) Switch to night if needed
+    if (typeof window.toggleDayNight === 'function') {
+      window.toggleDayNight();
+    }
+  
+    // 4) Remove leftover water (flagged .isWater) or prior lava
+    scene.children
+      .filter(o => o.isWater === true || o.name === 'LavaShaderPlane')
+      .forEach(o => scene.remove(o));
+  
+    // 5) Prepare your spacing & color parameters
+    const width       = columnSize * spacing;
+    const heightSpace = width * Math.sqrt(3) / 2;
+    const buffer      = 4;
+    const noiseScale  = 0.1;
+    const heightScale = maxHeight * 0.7;
+    const baseHeight  = maxHeight * 0.3;
+    const lowColor    = new THREE.Color(0xbbbbbb);
+    const midColor    = new THREE.Color(0xffffff);
+    const highColor   = new THREE.Color(0x88aaff);
+  
+    // 6) Pillar loop (fresh, no Level 1 calls)
+    for (let r = -buffer; r < rows + buffer; r++) {
+      for (let c = -buffer; c < cols + buffer; c++) {
+        for (let tri = 0; tri < 2; tri++) {
+          const isUpsideDown = tri === 1;
+          const x = c * width * 1.2 + (isUpsideDown ? width/2 : 0);
+          const z = r * heightSpace * 1.2 + (isUpsideDown ? heightSpace/2 : 0);
+  
+          // sample noise → height
+          const n = (noise2D(x*noiseScale, z*noiseScale) + 1) * 0.5;
+          const h = n * heightScale + baseHeight;
+  
+          // blend color by height
+          const t     = (h - baseHeight) / heightScale;
+          const color = t < 0.5
+            ? lowColor.clone().lerp(midColor, t*2)
+            : midColor.clone().lerp(highColor, (t-0.5)*2);
+  
+          // create mesh + body
+          const mesh = createTriangularColumnMesh(columnSize, h, color.getHex(), isUpsideDown, false);
+          mesh.position.set(x, h/2, z);
+          scene.add(mesh);
+  
+          const body = createTriangularColumnBody(columnSize, h, isUpsideDown);
+          body.position.set(x, h/2, z);
+          world.addBody(body);
+  
+          columnsArrayRef.push({ x, z, height: h, mesh, body });
         }
+      }
     }
-    // --- End Pillar Creation Loop ---
+  
+    // 7) Goal pillar setup
+    const goalData = setupGoalPillar(columnsArrayRef);
+    if (goalData) {
+      scene.remove(goalData.mesh);
+      const goalMesh = createTriangularColumnMesh(
+        columnSize,
+        goalData.height,
+        0,
+        goalData.isUpsideDown,
+        true
+      );
+      goalMesh.position.copy(goalData.body.position);
+      scene.add(goalMesh);
 
-    // Setup Goal Pillar
-    const designatedGoalData = setupGoalPillar(terrainColumns);
-    if (designatedGoalData) {
-        scene.remove(designatedGoalData.mesh);
-        const newGoalMesh = createTriangularColumnMesh(
-            columnSize, designatedGoalData.height, 0, designatedGoalData.isUpsideDown, true
-        );
-        newGoalMesh.position.copy(designatedGoalData.body.position);
-        scene.add(newGoalMesh);
-        designatedGoalData.mesh = newGoalMesh;
+        const markerPos = new THREE.Vector3(
+            goalData.x,
+            goalData.height,
+            goalData.z
+            );
+        createGoalMarker(markerPos, scene);
 
-        const markerPosition = new THREE.Vector3(designatedGoalData.x, designatedGoalData.height, designatedGoalData.z);
-        createGoalMarker(markerPosition, scene);
-
-        goalPillarData = {
-            mesh: newGoalMesh, body: designatedGoalData.body, position: markerPosition
-        };
-        console.log("Level 2 Goal pillar visuals updated and marker created.");
-    } else {
-        console.warn("Could not designate Level 2 goal pillar.");
     }
-
-    // Add safety floor and water
-    const safetyFloorY = -40;
-    createSafetyFloor(safetyFloorY);
-
-    const waterLevel = lowestPoint + 0.2;
-    const terrainSpanX = (cols + 2 * bufferSize) * width * 1.2;
-    const terrainSpanZ = (rows + 2 * bufferSize) * heightSpacing * 1.2;
-    const waterSize = Math.max(terrainSpanX, terrainSpanZ) * 1.2;
-    addWater(waterLevel, waterSize);
-
-    console.log("Level 2 Terrain Initialized.");
-}
+  
+    // 8) Add your lava plane
+    const heights = columnsArrayRef.map(c => c.height);
+    const lavaY   = Math.min(...heights) + 0.5;
+    const spanX      = (cols + 2*buffer) * width * 1.2;
+    const spanZ      = (rows + 2*buffer) * heightSpace * 1.2;
+    lavaMaterial = createLavaShaderPlane(lavaY, spanX, spanZ);
+  
+    console.log("Level 2 ready with independent layout and lava!");
+  }
 
 
 // --- Need to copy or import these from terrain.js ---
 // (addWater and createSafetyFloor functions remain the same as previous response)
-function addWater(waterHeight, waterSize) {
-    const waterGeometry = new THREE.PlaneGeometry(waterSize, waterSize, 16, 16);
-    waterGeometry.rotateX(-Math.PI / 2);
-    const waterMaterial = new THREE.MeshPhongMaterial({
-        color: 0x101025, transparent: true, opacity: 0.7,
-        specular: 0x333355, shininess: 40, side: THREE.DoubleSide,
-    });
-    const waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
-    waterMesh.position.y = waterHeight;
-    waterMesh.isWater = true;
-    scene.add(waterMesh);
-}
+
 function createSafetyFloor(yPosition) {
   const floorSize = 1000;
   const floorThickness = 1;
@@ -283,3 +336,5 @@ function createSafetyFloor(yPosition) {
   floorMesh.isSafetyFloor = true;
   scene.add(floorMesh);
 }
+
+export { lavaMaterial };
