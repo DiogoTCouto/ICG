@@ -1,6 +1,7 @@
 // physics.js
 // Increased gravity significantly for faster falling.
 // Set player-wall friction to zero to reduce getting stuck on terrain edges.
+// FURTHER REFINED: Re-introduced small friction and zero restitution for player-wall.
 
 // 1) Create the physics world
 import * as THREE from 'three';
@@ -22,8 +23,8 @@ const playerMaterial = new CANNON.Material("playerMaterial");
 
 // Player interaction with terrain/walls
 const playerToWallContact = new CANNON.ContactMaterial(playerMaterial, wallMaterial, {
-  friction: 0.0,      // *** Set friction to zero to prevent sticking ***
-  restitution: 0.05   // Keep very low bounciness against terrain/walls
+  friction: 0.00005,      // << INCREASED: Add a little friction to prevent gliding
+  restitution: 0.0    // << DECREASED: Set bounciness to zero
 });
 world.addContactMaterial(playerToWallContact);
 

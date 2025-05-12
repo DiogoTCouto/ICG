@@ -22,7 +22,6 @@ import {
 // Import item/enemy functions
 import { spawnBallMachine, updateBalls, processRemovals as processBallRemovals } from './ball.js';
 import { handleClick, startCupcakeSpawner, updateCupcakes, processRemovals as processCupcakeRemovals } from './cupcake.js';
-import { lavaMaterial } from './terrain_level2.js';
 // --- Game State Variables ---
 const urlParams = new URLSearchParams(window.location.search);
 const initialModel = urlParams.get('model') || 'cube';
@@ -53,6 +52,13 @@ const cameraHeight = 15;
 let smoothedCameraRotation = cameraRotation || 0;
 let smoothedCameraTilt = cameraTilt || defaultCameraTilt;
 let zoomLevel = 1.0;
+
+// Smoothed vectors for TPV
+const camFollowPos = new THREE.Vector3();
+const camLookAtPos = new THREE.Vector3();
+// Tweak these to taste:
+const FOLLOW_LERP = 0.12;
+const TARGET_LERP = 0.08;
 
 // --- UI Elements ---
 const scoreEl = document.getElementById('score');
@@ -373,10 +379,7 @@ function animate() {
     updateBalls();
     updateCupcakes();
     // updateWater(deltaTime); // Water animation might be handled internally now
-    if (lavaMaterial && lavaMaterial.uniforms && lavaMaterial.uniforms.uTime) {
-        // Use elapsed time (in seconds) to drive the lava
-        lavaMaterial.uniforms.uTime.value = performance.now() * 0.001;
-      }
+
     // Camera Update Logic (remains the same as previous version)
     const playerBody = getPlayerBody();
     const currentCameraMode = getCameraMode();
@@ -389,40 +392,86 @@ function animate() {
     } else if (playerBody) {
         if (currentCameraMode === 'firstPerson') {
             const headPosition = new THREE.Vector3();
+            const playerPosition = new THREE.Vector3().copy(playerBody.position);
+            // headPosition.set(0, getPlayerHeightOffset() * 0.8, 0); // Original offset logic
+            // camera.position.copy(playerPosition);
+            // camera.position.y += getPlayerHeightOffset() * 0.8; // Original Y adjustment
+
+            // Snap to head position as per user request
             headPosition.copy(playerBody.position);
-            headPosition.y += getPlayerHeightOffset();
-            const positionSmoothingFactor = 0.2;
-            camera.position.lerp(headPosition, positionSmoothingFactor);
+            headPosition.y += getPlayerHeightOffset(); // Use the full offset for head height
+            camera.position.copy(headPosition); // Snap camera position
+
+            // Camera rotation is handled by player.js based on mouse input (playerPitch, playerYaw)
+            // player.js will now slerp the camera.quaternion
+
         } else { // 'thirdPerson'
-            const cameraPositionLerpFactor = 0.15;
-            const cameraRotationSmoothFactor = 0.1;
+            // Calculate raw target position & lookAt
+            const rawOffset = new THREE.Vector3(
+              cameraDistance * zoomLevel * Math.sin(smoothedCameraRotation),
+              cameraDistance * zoomLevel * Math.tan(smoothedCameraTilt) + cameraHeight * zoomLevel,
+              cameraDistance * zoomLevel * Math.cos(smoothedCameraRotation)
+            );
+            // Convert playerBody.position (CANNON.Vec3) to THREE.Vector3 before cloning and adding
+            const playerThreePosition = new THREE.Vector3(playerBody.position.x, playerBody.position.y, playerBody.position.z);
+            const targetCamPos = playerThreePosition.clone().add(rawOffset);
+            const targetLookAt = playerThreePosition.clone().add(new THREE.Vector3(0, 1, 0)); // Look at a point 1 unit above player body center
+
+            // Smooth follow & look-at separately
+            camFollowPos.lerp(targetCamPos, FOLLOW_LERP);
+            camLookAtPos.lerp(targetLookAt, TARGET_LERP);
+
+            camera.position.copy(camFollowPos);
+            camera.lookAt(camLookAtPos);
+
+            // Drag-based smoothing for smoothedCameraRotation and smoothedCameraTilt is still active
+            // (This part of your existing logic for isDragging should remain)
             if (isDragging) {
+                 const cameraRotationSmoothFactor = 0.1; // Keep your existing factor or adjust
                  smoothedCameraRotation += (cameraRotation - smoothedCameraRotation) * cameraRotationSmoothFactor;
                  smoothedCameraTilt += (cameraTilt - smoothedCameraTilt) * cameraRotationSmoothFactor;
                  smoothedCameraTilt = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, smoothedCameraTilt));
             }
-            const horizontalDistance = cameraDistance * zoomLevel;
-            const baseVerticalOffset = cameraHeight * zoomLevel;
-            const offset = new THREE.Vector3();
-            offset.x = horizontalDistance * Math.sin(smoothedCameraRotation);
-            offset.z = horizontalDistance * Math.cos(smoothedCameraRotation);
-            offset.y = horizontalDistance * Math.tan(smoothedCameraTilt) + baseVerticalOffset;
-            const targetCamPos = new THREE.Vector3();
-            targetCamPos.copy(playerBody.position).add(offset);
-            camera.position.lerp(targetCamPos, cameraPositionLerpFactor);
-            const lookAtTarget = new THREE.Vector3(
-                playerBody.position.x, playerBody.position.y + 1.0, playerBody.position.z
-            );
-            camera.lookAt(lookAtTarget);
         }
     } else {
         camera.lookAt(0, 0, 0);
     }
-
+      // --- Safety‐floor respawn ---
+    if (playerBody && window.safetyFloorY !== undefined) {
+        // if 1 unit below the floor, respawn
+        if (playerBody.position.y < window.safetyFloorY - 1) {
+        // teleport back to your spawn point (tweak coords as needed)
+        playerBody.position.set(0, 5, 0);
+        playerBody.velocity.set(0, 0, 0);
+        resetPlayerState(); // if you clear jump flags, etc.
+        }
+    }
     // Render
     renderer.render(scene, camera);
     // if (renderComposer) renderComposer.render();
 }
+
+world.addEventListener('beginContact', (event) => {
+    const p = getPlayerBody();
+    // check if one body is the player and the other is flagged safetyFloor
+    if ((event.bodyA === p && event.bodyB.isSafetyFloor) ||
+        (event.bodyB === p && event.bodyA.isSafetyFloor)) {
+      respawnPlayer();
+    }
+  });
+
+function respawnPlayer() {
+    const p = getPlayerBody();
+    // choose your spawn‐coords however you like
+    const spawnColumn = findNearestColumn(0, 0) || { x:0, z:0, height: 10 };
+    const spawnY = spawnColumn.height + getPlayerHeightOffset() + 1;
+    p.position.set(spawnColumn.x, spawnY, spawnColumn.z);
+    p.velocity.set(0,0,0);
+    p.angularVelocity.set(0,0,0);
+    p.wakeUp();
+    resetPlayerState();   // clears jump‐locks & canWin
+    console.log("Player respawned at safety floor collision");
+  }
 
 // --- Initialization ---
 function initGame() {

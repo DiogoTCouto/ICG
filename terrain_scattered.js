@@ -54,7 +54,7 @@ function createTriangularColumnMesh(columnSize, height, color, isUpsideDown = fa
         // Load dirt texture for regular pillars
         const textureLoader = new THREE.TextureLoader();
         const dirtTexture = textureLoader.load(
-            'ICG/assets/wood_2.jpg', // Ensure this path is correct
+            'ICG/assets/Ground_texture.jpeg', // Ensure this path is correct
             (texture) => {
                 // console.log("Ground texture loaded successfully."); // Optional log
                 texture.encoding = THREE.sRGBEncoding;

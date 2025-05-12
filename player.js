@@ -1,6 +1,8 @@
 // player.js
 // Revised jump logic for reliable double jump.
 // Added win condition collision detection triggering level advance.
+// REFINED MOVEMENT: Increased speed, more responsive ground acceleration/deceleration.
+// FURTHER REFINED: Increased stop damping to reduce glide.
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es'; // Use cannon-es for ES module support
 import { scene, camera, renderer } from './scene.js';
@@ -117,8 +119,8 @@ export const playerPhysicsHeight = 2.5; // Keep adjusted height
 const playerHeightOffset = playerPhysicsHeight / 2;
 
 // Movement parameters
-const moveSpeed = 12;
-const jumpForce = 25;
+const moveSpeed = 22;
+const jumpForce = 30;
 const airControlFactor = 0.3;
 
 // State variables
@@ -143,6 +145,7 @@ const movementState = {
 let playerYaw = 0;
 let playerPitch = 0;
 const mouseSensitivity = 0.002;
+const fpvRotSmooth = 0.2; // Added for FPV rotation smoothing
 
 // --- Ground Check Variables ---
 const groundCheckRay = new CANNON.Ray(new CANNON.Vec3(), new CANNON.Vec3(0, -1, 0));
@@ -211,7 +214,7 @@ function initPlayer(initialModel = 'cube') {
     playerBody = new CANNON.Body({
         mass: 70, material: playerMaterial,
         fixedRotation: true,
-        linearDamping: 0.1,
+        linearDamping: 0.1, // Keep low base damping, rely on active stopping and friction
         angularDamping: 1.0 // Prevent spinning due to minor collisions
     });
     // Add shape centered within the body
@@ -368,7 +371,9 @@ function onPointerLockChange() {
  * Handle mouse movement for camera control.
  */
 function onMouseMove(event) {
+    // Guard clause: only process if pointer is locked and in first-person mode
     if (!isPointerLocked || cameraMode !== 'firstPerson') return;
+
     const movementX = event.movementX || 0;
     const movementY = event.movementY || 0;
     playerYaw -= movementX * mouseSensitivity;
@@ -480,11 +485,14 @@ function updatePlayer(deltaTime) { // Added deltaTime parameter
     }
     // ---
 
-    // --- 2. Update Camera Rotation and Player Mesh Rotation (First Person) ---
+    // --- 2. Update Camera Rotation and Player Mesh/Body Rotation ---
     if (cameraMode === 'firstPerson') {
+        // FPV: Camera controls its own pitch and the player body's yaw.
         _cameraQuaternion.setFromEuler(new THREE.Euler(playerPitch, playerYaw, 0, 'YXZ'));
-        camera.quaternion.copy(_cameraQuaternion);
-        // Player mesh rotation only needs yaw (body rotation)
+        // camera.quaternion.copy(_cameraQuaternion); // Old direct copy
+        camera.quaternion.slerp(_cameraQuaternion, fpvRotSmooth); // Slerp for smooth rotation
+
+        // Rotate the physics body based on yaw for horizontal aiming.
         _playerMeshQuaternion.setFromEuler(new THREE.Euler(0, playerYaw, 0, 'YXZ'));
         if (playerMesh) {
              playerMesh.quaternion.copy(_playerMeshQuaternion); // Direct rotation
@@ -514,25 +522,37 @@ function updatePlayer(deltaTime) { // Added deltaTime parameter
     const currentVelocity = playerBody.velocity;
     let targetVelocityX = 0;
     let targetVelocityZ = 0;
-    const speed = moveSpeed;
+    // `moveSpeed` is defined as a const at the top of the module
 
     if (hasInput) {
-        targetVelocityX = _movementDirection.x * speed;
-        targetVelocityZ = _movementDirection.z * speed;
+        targetVelocityX = _movementDirection.x * moveSpeed;
+        targetVelocityZ = _movementDirection.z * moveSpeed;
     }
 
-    const groundVelocityLerpFactor = 0.15; // How quickly velocity changes on ground
-    // airControlFactor is defined above
-
     if (isGrounded) {
-        // On ground: Directly influence velocity towards target (smoother)
-        playerBody.velocity.x += (targetVelocityX - currentVelocity.x) * groundVelocityLerpFactor;
-        playerBody.velocity.z += (targetVelocityZ - currentVelocity.z) * groundVelocityLerpFactor;
+        // REFINED GROUND MOVEMENT
+        const groundAccelerationFactor = 0.5; // How quickly player reaches target speed on ground
+        const stopDampingFactor = 0.6;      // << INCREASED: How quickly player stops when no input
+
+        if (hasInput) {
+            playerBody.velocity.x += (targetVelocityX - currentVelocity.x) * groundAccelerationFactor;
+            playerBody.velocity.z += (targetVelocityZ - currentVelocity.z) * groundAccelerationFactor;
+        } else {
+            // If no input, quickly damp horizontal velocity to stop faster
+            playerBody.velocity.x -= currentVelocity.x * stopDampingFactor;
+            playerBody.velocity.z -= currentVelocity.z * stopDampingFactor;
+
+            // If velocity is very small, set to zero to prevent tiny drifts
+            const minSpeedThreshold = 0.1;
+            if (Math.abs(currentVelocity.x) < minSpeedThreshold) playerBody.velocity.x = 0;
+            if (Math.abs(currentVelocity.z) < minSpeedThreshold) playerBody.velocity.z = 0;
+        }
     } else {
-        // In air: Apply force for less direct control
-        const forceX = (targetVelocityX - currentVelocity.x) * airControlFactor * playerBody.mass * 10; // Apply force based on difference
+        // In air: Apply force for air control (original logic, more effective with higher moveSpeed)
+        // `airControlFactor` is defined as a const at the top of the module
+        const forceX = (targetVelocityX - currentVelocity.x) * airControlFactor * playerBody.mass * 10;
         const forceZ = (targetVelocityZ - currentVelocity.z) * airControlFactor * playerBody.mass * 10;
-        playerBody.applyForce(new CANNON.Vec3(forceX, 0, forceZ), CANNON.Vec3.ZERO); // Apply force at center of mass
+        playerBody.applyForce(new CANNON.Vec3(forceX, 0, forceZ), CANNON.Vec3.ZERO);
     }
 
     // --- 5. Handle Jumping (Revised Logic) ---
@@ -544,6 +564,7 @@ function updatePlayer(deltaTime) { // Added deltaTime parameter
 
             // Apply impulse for jump
             playerBody.velocity.y = 0; // Reset vertical velocity for consistent jump height
+            // `jumpForce` is defined as a const at the top of the module
             playerBody.applyImpulse(new CANNON.Vec3(0, jumpForce * playerBody.mass, 0), CANNON.Vec3.ZERO);
 
             // State changes *after* jump is initiated
@@ -551,7 +572,7 @@ function updatePlayer(deltaTime) { // Added deltaTime parameter
             isGrounded = false;   // Force airborne state after jumping
             coyoteTimer = 0;      // Consume coyote time window if used
 
-            console.log(`${isFirstJump ? 'Ground/Coyote' : 'Air'} Jump! Remaining: ${jumpsRemaining}`);
+            // console.log(`${isFirstJump ? 'Ground/Coyote' : 'Air'} Jump! Remaining: ${jumpsRemaining}`);
         }
         movementState.jump = false; // Consume the jump input press
     }
@@ -559,11 +580,10 @@ function updatePlayer(deltaTime) { // Added deltaTime parameter
 
     // --- 6. Update Mesh Position ---
     if (playerMesh) {
-        // *** FIXED: Copy physics body position directly to visual mesh ***
-        playerMesh.position.copy(playerBody.position);
+        // Copy physics body position directly to visual mesh
         // The physics body's position is its center.
-        // The visual mesh should also be centered around this point.
-        // Any visual offset should be handled within the create...Player functions if the model's origin isn't its center.
+        // The visual mesh's origin should also be its visual center for this to align correctly.
+        playerMesh.position.copy(playerBody.position);
     }
 
     // --- 7. Update Mesh Rotation (Third Person - Visual Only) ---
@@ -589,7 +609,7 @@ function updatePlayer(deltaTime) { // Added deltaTime parameter
     }
 
     // --- 8. Fall Check / Respawn ---
-    // Respawn logic is handled exclusively in main.js
+    // Respawn logic is handled exclusively in main.js via world collision event or y-check.
 
 } // End of updatePlayer function
 
@@ -599,7 +619,7 @@ function getPlayerBody() { return playerBody; }
 function getPlayerModel() { return playerModel; }
 function getPlayerMesh() { return playerMesh; }
 function getCameraMode() { return cameraMode; }
-function getPlayerHeightOffset() { return playerHeightOffset; } // This might need renaming if it's confusing
+function getPlayerHeightOffset() { return playerHeightOffset; }
 function getPlayerYaw() { return playerYaw; }
 function getPlayerPitch() { return playerPitch; }
 
@@ -620,5 +640,4 @@ export {
     createCubePlayer,
     createSpherePlayer,
     createRobotPlayer,
-
 };
