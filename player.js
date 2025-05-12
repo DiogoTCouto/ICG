@@ -489,7 +489,6 @@ function updatePlayer(deltaTime) { // Added deltaTime parameter
     if (cameraMode === 'firstPerson') {
         // FPV: Camera controls its own pitch and the player body's yaw.
         _cameraQuaternion.setFromEuler(new THREE.Euler(playerPitch, playerYaw, 0, 'YXZ'));
-        // camera.quaternion.copy(_cameraQuaternion); // Old direct copy
         camera.quaternion.slerp(_cameraQuaternion, fpvRotSmooth); // Slerp for smooth rotation
 
         // Rotate the physics body based on yaw for horizontal aiming.
