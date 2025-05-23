@@ -5,7 +5,7 @@ import * as CANNON from 'cannon-es'; // Import CANNON for physics
 import { scene, camera, renderer, createGlowingMaterial } from './scene.js';
 import { world, cupcakeMaterial } from './physics.js';
 import { terrainColumns } from './terrain.js';
-import { updateScore } from './main.js';
+import { updateScore as updateGlobalScore } from './main.js'; // Renamed to avoid conflict
 
 let cupcakes = []; // Stores { mesh, body, shadow, hovered }
 let score = 0;
@@ -41,7 +41,7 @@ const removeCupcakesQueue = [];
 /**
  * Queue a cupcake for removal
  */
-function queueCupcakeForRemoval(body) {
+export function queueCupcakeForRemoval(body) { // Added export
   if (!removeCupcakesQueue.includes(body)) {
     removeCupcakesQueue.push(body);
   }
@@ -181,6 +181,8 @@ function createCupcakePhysics(x, y, z) {
 
   body.addShape(baseShape, new CANNON.Vec3(0, 0, 0), baseQuat);
   body.addShape(frostingShape, new CANNON.Vec3(0, 0.7, 0));
+
+  body.isCupcake = true; // Add this flag
 
   // Position the body
   body.position.set(x, y, z);
@@ -352,41 +354,45 @@ function updateCupcakes() {
 /**
  * Remove a cupcake from the scene and physics world
  */
-function removeCupcake(body) {
-  const index = cupcakes.findIndex(c => c.body === body);
-  if (index === -1) return;
+function removeCupcake(cupcakeBody) {
+  const index = cupcakes.findIndex(c => c.body === cupcakeBody);
+  if (index !== -1) {
+    const cupcake = cupcakes[index];
 
-  const [cupcake] = cupcakes.splice(index, 1);
+    // Remove from Three.js scene
+    if (cupcake.group) scene.remove(cupcake.group);
+    if (cupcake.shadow) scene.remove(cupcake.shadow);
 
-  // Queue removal to avoid issues during physics step
-  setTimeout(() => {
-    // *** FIXED: Use world.removeBody() instead of world.remove() ***
-    // Check if the body is still in the world before removing
-    if (world.bodies.includes(cupcake.body)) {
-      world.removeBody(cupcake.body);
-    } else {
-       // console.warn("Attempted to remove cupcake body that was not in the world.", cupcake.body);
+    // Dispose of geometries and materials if they exist
+    if (cupcake.group) {
+        cupcake.group.traverse(child => {
+            if (child.isMesh) {
+                child.geometry?.dispose();
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m?.dispose());
+                    } else {
+                        child.material?.dispose();
+                    }
+                }
+            }
+        });
     }
+    if (cupcake.shadow && cupcake.shadow.geometry) cupcake.shadow.geometry.dispose();
+    if (cupcake.shadow && cupcake.shadow.material) cupcake.shadow.material.dispose();
 
-    // Remove visual elements only if they exist and have a parent
-    if (cupcake.group && cupcake.group.parent) scene.remove(cupcake.group);
-    if (cupcake.shadow && cupcake.shadow.parent) scene.remove(cupcake.shadow);
 
-    // Clean up resources
-    cupcake.group?.traverse(child => { // Add null check
-      if (child.geometry) child.geometry.dispose();
-      if (child.material) {
-        if (Array.isArray(child.material)) {
-          child.material.forEach(m => m?.dispose()); // Add null check
-        } else {
-          child.material?.dispose(); // Add null check
-        }
-      }
-    });
+    // Remove from Cannon.js world
+    if (cupcake.body) world.removeBody(cupcake.body);
 
-    if (cupcake.shadow?.geometry) cupcake.shadow.geometry.dispose();
-    if (cupcake.shadow?.material) cupcake.shadow.material.dispose();
-  }, 0);
+    // Remove from local array
+    cupcakes.splice(index, 1);
+
+    // Update score (using the imported global score update)
+    // The score logic might need adjustment based on how you want it to work.
+    // For now, let's assume each cupcake gives 10 points.
+    // updateGlobalScore(score + 10); // This was local score, ensure global score is updated
+  }
 }
 
 /**
@@ -483,54 +489,29 @@ function createCollectionEffect(position) {
  */
 function handleClick(event) {
   const raycaster = new THREE.Raycaster();
-  const mouse = new THREE.Vector2();
-
-  // Get normalized coordinates
-  const rect = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
+  const mouse = new THREE.Vector2(window.mouseX, window.mouseY);
   raycaster.setFromCamera(mouse, camera);
 
-  // Flat array of all meshes in all cupcake groups
   const allCupcakeMeshes = [];
   cupcakes.forEach(cupcake => {
-     // Safety check
     if (cupcake && cupcake.group) {
         cupcake.group.traverse(child => {
           if (child.isMesh) {
-            child.userData.parentGroup = cupcake.group;
+            child.userData.parentCupcakeBody = cupcake.body; // Store body reference
             allCupcakeMeshes.push(child);
           }
         });
     }
   });
 
-  // Check intersections with all cupcake meshes
-  const intersects = raycaster.intersectObjects(allCupcakeMeshes, false);
+  const intersects = raycaster.intersectObjects(allCupcakeMeshes);
 
   if (intersects.length > 0) {
-    const clickedMesh = intersects[0].object;
-    const clickedGroup = clickedMesh.userData.parentGroup;
-
-    const clickedCupcake = cupcakes.find(c => c && c.group === clickedGroup); // Safety check
-
-    if (clickedCupcake) {
-      // Increase score
-      score += 500;
-      if (scoreEl) scoreEl.textContent = score;
-      updateScore(score); // Call main.js function if needed
-
-      // Create collection effect at cupcake position
-      createCollectionEffect(clickedCupcake.body.position);
-
-      // Queue removal instead of removing immediately
-      queueCupcakeForRemoval(clickedCupcake.body);
-
-      // Play sound effect if available
-      if (window.playCollectionSound) {
-        window.playCollectionSound();
-      }
+    const intersectedMesh = intersects[0].object;
+    const cupcakeBodyToRemove = intersectedMesh.userData.parentCupcakeBody;
+    if (cupcakeBodyToRemove) {
+        updateGlobalScore(10); // Directly update global score by 10
+        queueCupcakeForRemoval(cupcakeBodyToRemove);
     }
   }
 }

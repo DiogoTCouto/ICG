@@ -213,10 +213,58 @@
         .loading-text::after { content: ''; position: absolute; right: -20px; animation: dots 1.5s infinite steps(4, end); }
         @keyframes dots { 0%, 100% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
         .loading-bar-container { width: 250px; height: 8px; background: #333; border-radius: 4px; overflow: hidden; position: relative; }
-        .loading-bar { height: 100%; width: 0%; background: #4CAF50; position: absolute; top: 0; left: 0; border-radius: 4px; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(76, 175, 80, 0.5); }
-
-        /* Accessibility */
+        .loading-bar { height: 100%; width: 0%; background: #4CAF50; position: absolute; top: 0; left: 0; border-radius: 4px; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(76, 175, 80, 0.5); }        /* Accessibility */
         button:focus, .player-option:focus { outline: none; box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.5); }
+
+        /* Vortum branding at bottom left */
+        .vortum-branding {
+          position: fixed;
+          bottom: 20px;
+          left: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          z-index: 1000;
+          opacity: 0.8;
+          transition: opacity 0.3s ease;
+        }
+
+        .vortum-branding:hover {
+          opacity: 1;
+        }
+
+        .vortum-gif {
+          width: 40px;
+          height: 40px;
+          border-radius: 6px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .vortum-text {
+          color: #fff;
+          font-family: 'Poppins', sans-serif;
+          font-size: 1.1rem;
+          font-weight: 700;
+          text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+          letter-spacing: 0.5px;
+        }
+
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 480px) {
+          .vortum-branding {
+            bottom: 15px;
+            left: 15px;
+          }
+          
+          .vortum-gif {
+            width: 32px;
+            height: 32px;
+          }
+          
+          .vortum-text {
+            font-size: 0.9rem;
+          }
+        }
 
       </style>
 </head>
@@ -297,6 +345,11 @@
       <p>Project for Intro to Computer Graphics.</p>
       <p>&copy; 2025 Diogo Couto 104288</p>
     </div>
+  </div>
+  <!-- Vortum branding at bottom left -->
+  <div class="vortum-branding">
+    <img src="assets/akshan-lol.gif" alt="Vortum" class="vortum-gif">
+    <span class="vortum-text">Vortum</span>
   </div>
 
   <div id="gameContainer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;">

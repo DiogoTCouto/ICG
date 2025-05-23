@@ -124,6 +124,25 @@ function updateLevelDisplay() {
 }
 
 
+function showLevelPopup(level, description) {
+    const popup = document.getElementById('levelPopup');
+    const title = document.getElementById('levelPopupTitle');
+    const desc = document.getElementById('levelPopupDescription');
+    
+    if (!popup || !title || !desc) return;
+    
+    title.textContent = `Level ${level}`;
+    desc.textContent = description;
+    
+    // Show popup
+    popup.classList.add('show');
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        popup.classList.remove('show');
+    }, 5000);
+}
+
 function showStatusMessage(message, duration = 3000) {
     if (gameStatusEl) {
         gameStatusEl.textContent = message;
@@ -269,9 +288,8 @@ function loadLevel(levelNumber) {
         // Ensure day mode
         if (window.isNightModeActive === true && typeof window.toggleDayNight === 'function') {
             console.log("Switching to Day Mode for Level 1");
-            window.toggleDayNight();
-        }
-        showStatusMessage("Level 1", 4000);
+            window.toggleDayNight();        }
+        showLevelPopup(1, "Dodge falling balls and collect cupcakes to reach the goal!");
 
     } else if (levelNumber === 2) {
         // Use parameters for Level 2
@@ -282,9 +300,8 @@ function loadLevel(levelNumber) {
         // Ensure night mode
         if (window.isNightModeActive === false && typeof window.toggleDayNight === 'function') {
              console.log("Switching to Night Mode for Level 2");
-             window.toggleDayNight();
-        }
-         showStatusMessage("Level 2", 4000);
+             window.toggleDayNight();        }
+         showLevelPopup(2, "Night mode! Navigate the darker terrain to victory!");
     }
 
      // Reposition player AFTER terrain is generated and terrainColumns is populated
@@ -318,15 +335,13 @@ function loadLevel(levelNumber) {
  */
 window.advanceLevelOrWin = function() {
     // don’t advance if we’re paused or already in a win state
-    if (isPaused || gameWon) return;
-
-    if (currentLevel < maxLevels) {
+    if (isPaused || gameWon) return;    if (currentLevel < maxLevels) {
         const nextLevel = currentLevel + 1;
         console.log(`Level ${currentLevel} Complete! Advancing to Level ${nextLevel}`);
-        showStatusMessage(`Level ${currentLevel} Complete!`, 3000);
+        showLevelPopup(currentLevel, "Level Complete! Well done!");
         setTimeout(() => {
             loadLevel(nextLevel);
-        }, 1500);
+        }, 2500); // Slightly longer delay to let popup show
     } else {
         console.log(`Level ${currentLevel} Complete! Game Won!`);
         triggerFinalWin();
