@@ -8,12 +8,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* --- Styles --- */
-    body {
-      /* *** RESTORED original background image style *** */
-      background: url('assets/menu_bg.png') repeat center/cover;
-      /* background: linear-gradient(45deg, #1a213a, #2e3350, #1a213a); */ /* Removed gradient */
-      background-size: cover; /* Ensure it covers */
+    /* --- Styles --- */    body {
+      /* Enhanced background with darker overlay for better contrast */
+      background: url('assets/menu_bg.png') center/cover no-repeat;
+      background-size: cover;
       background-position: center center;
       background-repeat: no-repeat;
       height: 100vh;
@@ -22,6 +20,23 @@
       position: relative;
       color: #fff;
       font-family: 'Poppins', sans-serif;
+    }
+
+    /* Add dark overlay for better contrast */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, 
+        rgba(0, 0, 0, 0.7) 0%, 
+        rgba(26, 33, 58, 0.8) 50%, 
+        rgba(0, 0, 0, 0.7) 100%
+      );
+      z-index: 1;
+      pointer-events: none;
     }
 
 
@@ -34,10 +49,7 @@
         height: 100%;
         z-index: -1;
         pointer-events: none;
-    }
-
-    /* split menu into two columns */
-    .menu-container {
+    }    /* split menu into two columns */    .menu-container {
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
@@ -48,7 +60,8 @@
       gap: 2rem; /* Reduced gap */
       padding: 1rem; /* Add padding for smaller screens */
       box-sizing: border-box; /* Include padding in width/height */
-      z-index: 10;
+      z-index: 20; /* Increased to be above background overlay */
+      animation: float 6s ease-in-out infinite;
     }
 
     /* Responsive layout for panels */
@@ -58,27 +71,27 @@
             gap: 3rem;
             padding: 2rem;
         }
-    }
-
-
-    /* left panel: rotating model */
+    }    /* left panel: rotating model - seamlessly integrated into background */
     .left-panel {
-      /* Using original user dimensions */
       width: 500px;
       height: 500px;
-      /* width: 200px; */ /* Reverted size */
-      /* height: 200px; */ /* Reverted size */
       overflow: visible;
       flex-shrink: 0;
+      position: relative;
+      /* No box styling - fully integrated into background */
     }
+
     #modelCanvas {
       width: 100%;
       height: 100%;
       display: block;
       cursor: grab;
+      border-radius: 0;
+      /* Seamless integration - no borders or backgrounds */
     }
-     #modelCanvas:active {
-        cursor: grabbing;
+    
+    #modelCanvas:active {
+      cursor: grabbing;
     }
 
 
@@ -90,21 +103,50 @@
         justify-content: center;
         text-align: center;
         flex-shrink: 0;
-      }
-
-        /* Using original title style */
+      }        /* Modern holographic title effect */
         .right-panel .game-title {
-          /* Copied from original user file's style for .game-title */
           position: static;
           transform: none;
           top: auto;
           left: auto;
-          font-size: 6rem;     /* bump up title size */
-          margin-bottom: 1.5rem; /* space to buttons */
+          font-size: 6rem;
+          margin-bottom: 1.5rem;
           pointer-events: none;
-          /* Added from previous version */
           color: #fff;
-          text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+          font-weight: 900;
+          letter-spacing: 4px;
+          text-transform: uppercase;
+          /* Create a subtle holographic effect */
+          background: linear-gradient(
+            45deg,
+            #ff6b6b 0%,
+            #4ecdc4 25%,
+            #45b7d1 50%,
+            #96ceb4 75%,
+            #feca57 100%
+          );
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          background-size: 300% 300%;
+          animation: titleHolo 4s ease-in-out infinite;
+          /* Clean shadow for depth */
+          filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.7))
+                  drop-shadow(6px 6px 0 rgba(0, 0, 0, 0.5));
+          /* Minimal border */
+          -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes titleHolo {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
         }
 
         /* Using original menu buttons style */
@@ -121,66 +163,93 @@
           /* Added from previous version for centering */
           width: 100%;
           max-width: 250px;
-        }
-
-        /* Using original menu button style */
+        }        /* Enhanced menu buttons with better contrast */
         .menu-button {
-          /* Copied from original user file */
-          padding: 10px 0;
-          font-size: 0.9rem; /* Keep font size */
-          border-radius: 6px; /* Keep slightly rounded corners */
-          border: 1px solid rgba(0, 0, 0, 0.3);
-          background: rgba(0, 0, 0, 0.45);
+          padding: 15px 25px;
+          font-size: 1rem;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          background: rgba(0, 0, 0, 0.4);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
           color: white;
           cursor: pointer;
-          transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+          transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.8px;
+          letter-spacing: 1px;
           text-align: center;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          box-shadow: 
+            0 4px 15px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .menu-button::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, 
+            transparent, 
+            rgba(255, 255, 255, 0.2), 
+            transparent
+          );
+          transition: left 0.5s ease;
         }
 
         .menu-button:hover {
-          /* Copied from original user file */
-          background: rgba(0, 0, 0, 0.6);
-          transform: scale(1.04);
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+          background: rgba(76, 175, 80, 0.3);
+          border-color: rgba(76, 175, 80, 0.5);
+          transform: translateY(-3px) scale(1.02);
+          box-shadow: 
+            0 8px 25px rgba(0, 0, 0, 0.5),
+            0 0 20px rgba(76, 175, 80, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .menu-button:hover::before {
+          left: 100%;
         }
 
         .menu-button:active {
-            /* Copied from original user file */
-            transform: scale(1);
-            background: rgba(0, 0, 0, 0.5);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+          transform: translateY(-1px) scale(1.01);
+          box-shadow: 
+            0 4px 15px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
 
-        /* Style the Play button differently */
+        /* Special styling for Play button */
         .menu-button.play {
-          /* Copied from original user file */
-          background: #4CAF50;
-          border-color: #388E3C;
+          background: linear-gradient(135deg, 
+            rgba(76, 175, 80, 0.4) 0%, 
+            rgba(67, 160, 71, 0.5) 100%
+          );
+          border-color: rgba(76, 175, 80, 0.6);
+          box-shadow: 
+            0 4px 15px rgba(0, 0, 0, 0.4),
+            0 0 20px rgba(76, 175, 80, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
         }
 
         .menu-button.play:hover {
-           /* Copied from original user file */
-           background: #5DC061;
-           border-color: #4CAF50;
-           transform: scale(1.04);
-           box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-        }
-        .menu-button.play:active {
-           /* Copied from original user file */
-           background: #388E3C;
-           transform: scale(1);
-           box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-        }
-
+          background: linear-gradient(135deg, 
+            rgba(76, 175, 80, 0.6) 0%, 
+            rgba(67, 160, 71, 0.7) 100%
+          );
+          border-color: rgba(76, 175, 80, 0.8);
+          box-shadow: 
+            0 8px 25px rgba(0, 0, 0, 0.5),
+            0 0 30px rgba(76, 175, 80, 0.6),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);        }
 
         /* --- Modal Styling (kept consistent with original) --- */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 2000; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; padding: 1rem; box-sizing: border-box; }
         .modal.active { display: flex; opacity: 1; }
-        .modal-content { background: rgba(42, 42, 48, 0.95); backdrop-filter: blur(8px); border-radius: 10px; padding: 30px 40px; width: 90%; max-width: 550px; position: relative; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); color: white; transform: scale(0.9); opacity: 0; transition: all 0.3s ease-out; border: 1px solid rgba(255, 255, 255, 0.1); max-height: 90vh; overflow-y: auto; }
+        .modal-content { background: rgba(42, 42, 48, 0.95); backdrop-filter: blur(8px); border-radius: 10px; padding: 30px 40px; width: 90%; max-width: 600px; position: relative; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); color: white; transform: scale(0.9); opacity: 0; transition: all 0.3s ease-out; border: 1px solid rgba(255, 255, 255, 0.1); max-height: 95vh; overflow-y: auto; }
         .modal.active .modal-content { transform: scale(1); opacity: 1; }
         .close-button { position: absolute; top: 12px; right: 18px; font-size: 26px; font-weight: bold; line-height: 1; cursor: pointer; color: #aaa; transition: color 0.3s; z-index: 1; }
         .close-button:hover { color: white; }
@@ -200,10 +269,83 @@
         .control-item span:first-child { margin-right: auto; }
         .key { background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 6px; font-family: monospace; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); min-width: 40px; text-align: center; display: inline-block; margin-left: 4px; }
         .about-content { text-align: center; }
-        /* Using original placeholder image style */
-        .about-content img { max-width: 120px; border-radius: 50%; margin-bottom: 15px; border: 3px solid #4CAF50; }
+        /* Using original placeholder image style - now scoped to direct child */
+        .about-content > img { max-width: 120px; border-radius: 50%; margin-bottom: 15px; border: 3px solid #4CAF50; }
         .about-content p { font-size: 0.9rem; line-height: 1.6; margin-bottom: 10px; color: #ddd; }
-        .about-content p:last-of-type { margin-bottom: 0; }
+        .about-content p:last-of-type { margin-bottom: 0; }        /* QR Code Section Styles */
+        .qr-section {
+          margin: 25px 0;
+          padding: 25px;
+          border-radius: 12px;
+          background: rgba(76, 175, 80, 0.15);
+          border: 2px solid rgba(76, 175, 80, 0.4);
+        }
+
+        .qr-section h3 {
+          color: #4CAF50;
+          margin: 0 0 20px 0;
+          font-size: 1.3rem;
+          text-align: center;
+          font-weight: 600;
+        }
+
+        .qr-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+        .qr-code {
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+          margin-bottom: 12px;
+          /* background: white; */ /* Removed as QR image from API is already on white */
+          /* padding: 12px; */    /* Removed to avoid extra border */
+          max-width: 160px; /* Match API image size */
+          width: 100%;      /* Responsive within the container, up to max-width */
+          height: auto;       /* Maintain aspect ratio */
+          display: block;     /* Consistent layout behavior */
+          border-radius: 0;   /* Ensure it's square */
+        }
+
+        .qr-text {
+          font-size: 0.8rem;
+          color: #aaa;
+          margin: 0;
+        }
+
+        .github-link {
+          display: inline-block;
+          color: #4CAF50;
+          text-decoration: none;
+          font-weight: 600;
+          font-size: 0.9rem;
+          padding: 8px 16px;
+          border: 1px solid #4CAF50;
+          border-radius: 6px;
+          transition: all 0.3s ease;
+          background: rgba(76, 175, 80, 0.1);
+        }        .github-link:hover {
+          background: #4CAF50;
+          color: white;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }        /* Responsive QR Code adjustments */
+        @media (max-width: 480px) {
+          .qr-code {
+            padding: 8px;
+            max-width: 100%;
+          }
+          
+          .qr-section {
+            padding: 20px 15px;
+            margin: 20px 0;
+          }
+          
+          .modal-content {
+            padding: 20px 25px;
+            max-width: 95%;
+          }
+        }
 
         /* --- Loading Screen Styling (kept consistent with original) --- */
         .loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a1d; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; opacity: 1; transition: opacity 0.5s ease-out; }
@@ -214,30 +356,39 @@
         @keyframes dots { 0%, 100% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
         .loading-bar-container { width: 250px; height: 8px; background: #333; border-radius: 4px; overflow: hidden; position: relative; }
         .loading-bar { height: 100%; width: 0%; background: #4CAF50; position: absolute; top: 0; left: 0; border-radius: 4px; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(76, 175, 80, 0.5); }        /* Accessibility */
-        button:focus, .player-option:focus { outline: none; box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.5); }
-
-        /* Vortum branding at bottom left */
+        button:focus, .player-option:focus { outline: none; box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.5); }        /* Simple Vortum branding without box styling */
         .vortum-branding {
           position: fixed;
           bottom: 20px;
           left: 20px;
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 15px;
           z-index: 1000;
+          transition: all 0.3s ease;
           opacity: 0.8;
-          transition: opacity 0.3s ease;
         }
 
         .vortum-branding:hover {
           opacity: 1;
+          transform: translateY(-2px) scale(1.05);
         }
 
         .vortum-gif {
-          width: 40px;
-          height: 40px;
-          border-radius: 6px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          width: 45px;
+          height: 45px;
+          border-radius: 12px;
+          box-shadow: 
+            0 4px 12px rgba(0, 0, 0, 0.4),
+            0 0 10px rgba(76, 175, 80, 0.2);
+          transition: all 0.3s ease;
+        }
+
+        .vortum-branding:hover .vortum-gif {
+          box-shadow: 
+            0 6px 16px rgba(0, 0, 0, 0.5),
+            0 0 15px rgba(76, 175, 80, 0.4);
+          transform: scale(1.05);
         }
 
         .vortum-text {
@@ -245,11 +396,15 @@
           font-family: 'Poppins', sans-serif;
           font-size: 1.1rem;
           font-weight: 700;
-          text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-          letter-spacing: 0.5px;
-        }
-
-        /* Responsive adjustments for smaller screens */
+          text-shadow: 
+            0 0 10px rgba(76, 175, 80, 0.6),
+            0 2px 4px rgba(0, 0, 0, 0.8);
+          letter-spacing: 1px;
+          background: linear-gradient(135deg, #fff 0%, #4CAF50 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }        /* Responsive adjustments for smaller screens */
         @media (max-width: 480px) {
           .vortum-branding {
             bottom: 15px;
@@ -257,13 +412,36 @@
           }
           
           .vortum-gif {
-            width: 32px;
-            height: 32px;
+            width: 35px;
+            height: 35px;
           }
           
           .vortum-text {
             font-size: 0.9rem;
           }
+
+          .left-panel {
+            width: 350px;
+            height: 350px;
+          }          .right-panel .game-title {
+            font-size: 4rem;
+            letter-spacing: 2px;
+            -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.3);
+          }
+
+          .menu-button {
+            padding: 12px 20px;
+            font-size: 0.9rem;
+          }
+        }/* Add floating animation for enhanced appeal */
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+
+        .left-panel {
+          animation: float 4s ease-in-out infinite;
+          animation-delay: 0.5s;
         }
 
       </style>
@@ -334,7 +512,6 @@
       </div>
     </div>
   </div>
-
   <div class="modal" id="aboutModal">
       <div class="modal-content about-content">
       <span class="close-button" id="closeAbout">&times;</span>
@@ -343,6 +520,20 @@
       <p>Dodge the falling balls while navigating the treacherous terrain! Collect cupcakes for points.</p>
       <p>Built with Three.js & Cannon-es.</p>
       <p>Project for Intro to Computer Graphics.</p>
+      
+      <!-- QR Code Section -->
+      <div class="qr-section">
+        <h3>Play Online</h3>        <div class="qr-container">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://diogotcouto.github.io/ICG/index.html" 
+               alt="QR Code to play online" 
+               class="qr-code"/>
+          <p class="qr-text">Scan to play on mobile</p>
+        </div>
+        <a href="https://diogotcouto.github.io/ICG/index.html" target="_blank" class="github-link">
+          🌐 diogotcouto.github.io/ICG
+        </a>
+      </div>
+      
       <p>&copy; 2025 Diogo Couto 104288</p>
     </div>
   </div>
