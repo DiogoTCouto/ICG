@@ -34,3 +34,6 @@
 | **Generation:** Noise-based terrain, procedural algorithms | **Audio:** 3D spatial sound, dynamic music system |
 
 ---
+
+## Diogo Couto - 104288
+## ICG 2024/2025
